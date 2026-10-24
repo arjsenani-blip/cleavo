@@ -138,19 +138,19 @@ describe('plugin-vs-plugin key collisions', () => {
       apiVersion: 1,
       // Case-only variant of alpha's default: judged on the FOLDED key,
       // so it must lose exactly as it would against a static command.
-      commands: [{ id: 'beta.go', label: 'Go B', defaultKey: 'Mod-Alt-U', run: runB }],
+      commands: [{ id: 'beta.go', label: 'Go B', defaultKey: 'Mod-Alt-Q', run: runB }],
     });
     registerPluginDefinition({
       id: 'gamma',
       name: 'Gamma',
       apiVersion: 1,
-      commands: [{ id: 'gamma.go', label: 'Go C', defaultKey: 'Mod-Alt-u', run: vi.fn() }],
+      commands: [{ id: 'gamma.go', label: 'Go C', defaultKey: 'Mod-Alt-q', run: vi.fn() }],
     });
     const km = buildRibbonKeymap({});
-    // gamma's 'Mod-Alt-u' folds equal to beta's 'Mod-Alt-U' — only the
+    // gamma's 'Mod-Alt-q' folds equal to beta's 'Mod-Alt-Q' — only the
     // first-registered binding survives.
-    expect(km['Mod-Alt-U']).toBeDefined();
-    expect(km['Mod-Alt-u']).toBeUndefined();
+    expect(km['Mod-Alt-Q']).toBeDefined();
+    expect(km['Mod-Alt-q']).toBeUndefined();
     expect(km['Mod-Alt-7']).toBeDefined();
   });
 });

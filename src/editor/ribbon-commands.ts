@@ -5613,13 +5613,15 @@ export const DEFAULT_RIBBON_KEYS: Record<RibbonCommandId, string | string[]> = {
   toggleSuperscript: 'Mod-Shift-=',
   toggleSubscript: 'Mod-=',
   applyCite: 'F8',
-  applyUnderline: ['F9'],
+  // F9–F11 are Verbatim's keys; on a Mac those are media keys unless fn
+  // is held, so each also gets a ⌘⌥ letter. Both are rebindable.
+  applyUnderline: ['F9', 'Mod-Alt-u'],
   toggleUnderlineTyping: 'Mod-u',
   toggleReadingMarker: 'Mod-Shift-d',
-  applyEmphasis: 'F10',
+  applyEmphasis: ['F10', 'Mod-Alt-e'],
   applyEmphasisAndShading: '',
   emphasizeAcronym: 'Alt-F10',
-  applyHighlight: 'F11',
+  applyHighlight: ['F11', 'Mod-Alt-y'],
   highlightAcronym: 'Alt-F11',
   underlineAcronym: '',
   applyShading: 'Mod-F11',

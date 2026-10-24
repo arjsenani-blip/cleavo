@@ -2302,8 +2302,8 @@ describe('applyEmphasis (F10)', () => {
     expect(emphMarkOnText(next!.doc, 'hi')).toBe(true);
   });
 
-  it('default key binding: F10 → applyEmphasis', () => {
-    expect(DEFAULT_RIBBON_KEYS['applyEmphasis']).toBe('F10');
+  it('default key binding: F10 (and ⌘⌥E) → applyEmphasis', () => {
+    expect(DEFAULT_RIBBON_KEYS['applyEmphasis']).toEqual(['F10', 'Mod-Alt-e']);
   });
 });
 
@@ -2743,8 +2743,8 @@ describe('applyHighlight (F11)', () => {
     expect(hasMarkOfNameWithAttr(next!.doc, 'TheTag', 'highlight', 'color')).toBe('yellow');
   });
 
-  it('default key binding: F11 → applyHighlight', () => {
-    expect(DEFAULT_RIBBON_KEYS['applyHighlight']).toBe('F11');
+  it('default key binding: F11 (and ⌘⌥Y) → applyHighlight', () => {
+    expect(DEFAULT_RIBBON_KEYS['applyHighlight']).toEqual(['F11', 'Mod-Alt-y']);
   });
 
   // ---- Layer 3 trailing-space trim cases ---------------------------
