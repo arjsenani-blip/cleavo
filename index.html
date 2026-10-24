@@ -8,11 +8,41 @@
     <link rel="icon" type="image/png" href="favicon.png" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <title>Cooky</title>
+    <!-- Startup intro gate: decided synchronously, before the first paint,
+         so the intro (markup at the top of <body>) is the first thing on
+         screen. Desktop plays it in the launch window (?launch=1); the web
+         edition on every load. Settings → Startup animation turns it off.
+         splash.ts takes over once the app script runs. -->
+    <script>
+      (function () {
+        try {
+          var s = {};
+          try { s = JSON.parse(localStorage.getItem('pmd-settings') || '{}') || {}; } catch (e) {}
+          if (s.startupAnimation === false) return;
+          var desktop = /Electron/.test(navigator.userAgent);
+          if (desktop && !/[?&]launch=1\b/.test(location.search)) return;
+          if (window.innerWidth < 760) return;
+          document.documentElement.classList.add('lb-booting');
+          window.__lbIntroT0 = performance.now();
+        } catch (e) {}
+      })();
+    </script>
     <link rel="stylesheet" href="/src/editor/style.css" />
     <link rel="stylesheet" href="/src/editor/icons.css" />
     <link rel="stylesheet" href="/src/editor/lucas-theme.css" />
   </head>
   <body>
+    <div id="lb-intro" class="lb-intro" aria-hidden="true">
+      <div class="lb-intro-stage">
+        <div class="lb-orb">
+          <div class="lb-orb-field lb-orb-field-a"></div>
+          <div class="lb-orb-field lb-orb-field-b"></div>
+          <div class="lb-orb-sheen"></div>
+        </div>
+        <div class="lb-intro-word"><span style="--i:0">C</span><span style="--i:1">o</span><span style="--i:2">o</span><span style="--i:3">k</span><span style="--i:4">y</span></div>
+        <div class="lb-intro-sub">Cut cards · Write cites · Find evidence</div>
+      </div>
+    </div>
     <header id="ribbon">
       <!-- Timer panel — mounted by `timer-ui.ts`. Hidden until the
            user toggles it via the ⏱ button in the right stack
@@ -361,6 +391,6 @@
            (file-drag-mark.ts). Hidden until the desktop host wires it. -->
       <button id="file-drag-mark" type="button" hidden aria-label="CardMirror"></button>
     </div>
-    <script type="module" src="/src/editor/index.ts"></script>
+    <script type="module" src="/src/editor/boot.ts"></script>
   </body>
 </html>

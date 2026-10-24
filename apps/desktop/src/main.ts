@@ -449,6 +449,11 @@ function createWindow(initialDoc?: InitialDocPayload): BrowserWindow {
     minWidth: 0,
     minHeight: 0,
     title: 'Cooky',
+    // Stay hidden until the first frame is painted, so the window never
+    // flashes blank or shows the app before the startup intro. The
+    // background matches the intro's backdrop for the frame it takes.
+    show: false,
+    backgroundColor: '#0a0e14',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       // The startup chime plays before any click.
@@ -538,9 +543,22 @@ function createWindow(initialDoc?: InitialDocPayload): BrowserWindow {
   if (firstWindowId === null) {
     firstWindowId = win.id;
   }
+  // The launch window carries ?launch=1 so the page can start the intro
+  // in its very first paint, before any app script runs.
+  const isLaunchWindow = firstWindowId === win.id;
+
+  // Show on first paint; a fallback covers a page that never signals.
+  let shown = false;
+  const reveal = () => {
+    if (shown || win.isDestroyed()) return;
+    shown = true;
+    win.show();
+  };
+  win.once('ready-to-show', reveal);
+  setTimeout(reveal, 4000);
 
   if (!app.isPackaged) {
-    void win.loadURL(DEV_SERVER_URL);
+    void win.loadURL(isLaunchWindow ? `${DEV_SERVER_URL}?launch=1` : DEV_SERVER_URL);
     win.webContents.openDevTools({ mode: 'detach' });
   } else {
     // electron-builder packages the renderer's vite-build output
@@ -551,6 +569,7 @@ function createWindow(initialDoc?: InitialDocPayload): BrowserWindow {
     // packaged builds.
     void win.loadFile(
       path.join(process.resourcesPath, 'renderer', 'index.html'),
+      isLaunchWindow ? { query: { launch: '1' } } : undefined,
     );
   }
 

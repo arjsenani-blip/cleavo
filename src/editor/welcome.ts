@@ -23,7 +23,7 @@ export function maybeShowWelcome(): void {
   const card = el('form', 'lb-welcome-card');
   card.setAttribute('aria-labelledby', 'lb-welcome-title');
   const orb = el('div', 'lb-welcome-orb lb-orb');
-  for (let i = 1; i <= 4; i++) orb.append(el('div', `lb-orb-blob lb-orb-blob-${i}`));
+  orb.append(el('div', 'lb-orb-field lb-orb-field-a'), el('div', 'lb-orb-field lb-orb-field-b'));
   orb.append(el('div', 'lb-orb-sheen'));
   const title = el('h1', 'lb-welcome-title', 'Welcome to Cooky');
   title.id = 'lb-welcome-title';

@@ -866,68 +866,91 @@ body.lb-case-mode .pmd-card.lb-arg:hover {
 
 /* ── Startup intro (after Arc's) ──────────────────────────────────── */
 
+/* Smoothness rule: every moving part animates ONLY transform and
+   opacity, which the compositor runs on the GPU — frames keep coming
+   while the main thread is busy booting the editor underneath. No
+   animated filters, no backdrop blur, no blend modes on moving layers;
+   soft color comes from gradients painted once. */
+
 /* A spring curve: overshoots a little, settles — Arc's weighted motion. */
 :root {
   --lb-spring: linear(0, 0.009, 0.035 2.1%, 0.141, 0.281 6.7%, 0.723 12.9%, 0.938 16.7%, 1.017, 1.077, 1.121, 1.149 24.3%, 1.159, 1.163, 1.161, 1.154 29.9%, 1.129 32.8%, 1.051 39.6%, 1.017 43.1%, 0.991, 0.977 51%, 0.974 53.8%, 0.975 57.1%, 0.997 69.8%, 1.003 76.9%, 1);
 }
 
-.lb-intro {
+/* Hidden unless the head script chose to play it (html.lb-booting). It
+   is opaque from the first frame, so nothing shows through early. */
+.lb-intro { display: none; }
+html.lb-booting .lb-intro {
   position: fixed;
   inset: 0;
   z-index: 100000;
   display: grid;
   place-items: center;
-  background: rgba(6, 9, 14, 0.62);
-  backdrop-filter: blur(22px) saturate(140%);
-  -webkit-backdrop-filter: blur(22px) saturate(140%);
-  animation: lb-intro-dim 0.35s ease-out both;
+  overflow: hidden;
+  background:
+    radial-gradient(60% 55% at 50% 45%, #121a29 0%, #0a0e14 70%);
+  will-change: opacity;
 }
-@keyframes lb-intro-dim { from { background: rgba(6, 9, 14, 0); backdrop-filter: blur(0); } }
-
+/* Static grain on the backdrop (painted once, never moves). */
+html.lb-booting .lb-intro::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--lb-grain);
+  background-size: 240px 240px;
+  opacity: 0.07;
+  pointer-events: none;
+}
 .lb-intro-stage {
   display: grid;
   justify-items: center;
   gap: 26px;
 }
 
-/* The orb: drifting color blobs inside a sphere, a glassy sheen on top,
-   and a halo of its own light around it. */
+/* The orb: a clipped circle holding two soft color fields that
+   counter-rotate (pure transform), a static sheen, and its glow. */
 .lb-orb {
   position: relative;
   width: 200px;
   height: 200px;
   border-radius: 50%;
   overflow: hidden;
-  background: conic-gradient(from 210deg, #22d3ee, #3b82f6, #a855f7, #f472b6, #22d3ee);
-  animation: lb-orb-grow 1.05s var(--lb-spring) 0.12s forwards, lb-orb-hue 6s linear infinite;
+  isolation: isolate;
+  background: #1a2238;
   box-shadow:
     0 0 60px 6px rgba(var(--lb-accent-rgb), 0.45),
-    0 0 140px 30px rgba(139, 92, 246, 0.3),
+    0 0 140px 30px rgba(139, 92, 246, 0.28),
     inset 0 0 40px rgba(255, 255, 255, 0.15);
+}
+.lb-intro .lb-orb {
   transform: scale(0.04);
+  will-change: transform;
+  animation: lb-orb-grow 1.05s var(--lb-spring) 0.12s forwards;
 }
-@keyframes lb-orb-hue { to { filter: hue-rotate(40deg); } }
 @keyframes lb-orb-grow { to { transform: scale(1); } }
-.lb-orb-blob {
+.lb-orb-field {
   position: absolute;
-  width: 150%;
-  height: 150%;
-  left: -25%;
-  top: -25%;
+  inset: -40%;
   border-radius: 50%;
-  filter: blur(26px);
-  mix-blend-mode: screen;
-  transform-origin: 50% 50%;
+  will-change: transform;
 }
-.lb-orb-blob-1 { background: radial-gradient(circle at 30% 30%, rgb(var(--lb-accent-rgb)) 0%, transparent 45%); animation: lb-drift 3.2s ease-in-out infinite alternate; }
-.lb-orb-blob-2 { background: radial-gradient(circle at 72% 35%, #3b82f6 0%, transparent 45%); animation: lb-drift 3.8s ease-in-out -1.2s infinite alternate-reverse; }
-.lb-orb-blob-3 { background: radial-gradient(circle at 45% 75%, #a855f7 0%, transparent 45%); animation: lb-drift 4.4s ease-in-out -2s infinite alternate; }
-.lb-orb-blob-4 { background: radial-gradient(circle at 70% 72%, #f472b6 0%, transparent 40%); animation: lb-drift 3.5s ease-in-out -0.6s infinite alternate-reverse; }
-@keyframes lb-drift {
-  0% { transform: rotate(0deg) translate(0, 0) scale(1); }
-  50% { transform: rotate(140deg) translate(8%, -6%) scale(1.12); }
-  100% { transform: rotate(300deg) translate(-6%, 8%) scale(0.95); }
+.lb-orb-field-a {
+  background:
+    radial-gradient(34% 34% at 30% 32%, rgb(var(--lb-accent-rgb)) 0%, rgba(var(--lb-accent-rgb), 0) 100%),
+    radial-gradient(36% 36% at 72% 36%, #3b82f6 0%, rgba(59, 130, 246, 0) 100%),
+    radial-gradient(38% 38% at 46% 74%, #a855f7 0%, rgba(168, 85, 247, 0) 100%),
+    radial-gradient(30% 30% at 72% 72%, #f472b6 0%, rgba(244, 114, 182, 0) 100%);
+  animation: lb-spin 7s linear infinite;
 }
+.lb-orb-field-b {
+  opacity: 0.7;
+  background:
+    radial-gradient(30% 30% at 64% 26%, #67e8f9 0%, rgba(103, 232, 249, 0) 100%),
+    radial-gradient(32% 32% at 26% 66%, #ec4899 0%, rgba(236, 72, 153, 0) 100%),
+    radial-gradient(34% 34% at 70% 70%, #6366f1 0%, rgba(99, 102, 241, 0) 100%);
+  animation: lb-spin 11s linear infinite reverse;
+}
+@keyframes lb-spin { to { transform: rotate(360deg); } }
 .lb-orb-sheen {
   position: absolute;
   inset: 0;
@@ -938,7 +961,7 @@ body.lb-case-mode .pmd-card.lb-arg:hover {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
 }
 
-/* The name, one letter at a time. */
+/* The name, one letter at a time (transform + opacity only). */
 .lb-intro-word {
   display: flex;
   font-family: var(--lb-font);
@@ -951,12 +974,12 @@ body.lb-case-mode .pmd-card.lb-arg:hover {
 .lb-intro-word span {
   display: inline-block;
   opacity: 0;
-  transform: translateY(18px);
-  filter: blur(10px);
+  transform: translateY(22px) scale(0.92);
+  will-change: transform, opacity;
   animation: lb-letter 0.7s var(--lb-spring) forwards;
-  animation-delay: calc(0.72s + var(--i) * 0.045s);
+  animation-delay: calc(0.72s + var(--i) * 0.055s);
 }
-@keyframes lb-letter { to { opacity: 1; transform: none; filter: none; } }
+@keyframes lb-letter { to { opacity: 1; transform: none; } }
 .lb-intro-sub {
   margin-top: -12px;
   font-family: var(--lb-font);
@@ -965,27 +988,35 @@ body.lb-case-mode .pmd-card.lb-arg:hover {
   letter-spacing: 0.02em;
   color: rgba(228, 240, 245, 0.7);
   opacity: 0;
-  animation: lb-letter 0.8s ease-out 1.2s forwards;
+  transform: translateY(8px);
+  animation: lb-letter 0.8s ease-out 1.15s forwards;
 }
 
-/* The reveal: the orb opens outward through the screen as the dim lifts. */
-.lb-intro-out { animation: lb-intro-lift 0.65s cubic-bezier(0.65, 0, 0.35, 1) forwards; }
-.lb-intro-out .lb-orb { animation: lb-orb-open 0.65s cubic-bezier(0.7, 0, 0.84, 0) forwards; transform: scale(1); }
+/* The reveal: the orb opens outward as the backdrop fades away. */
+html.lb-booting .lb-intro.lb-intro-out {
+  animation: lb-intro-lift 0.65s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+.lb-intro-out .lb-orb {
+  transform: scale(1);
+  animation: lb-orb-open 0.65s cubic-bezier(0.7, 0, 0.84, 0) forwards;
+}
 .lb-intro-out :is(.lb-intro-word, .lb-intro-sub) { animation: lb-text-out 0.3s ease-in forwards; }
-@keyframes lb-intro-lift {
-  60% { opacity: 1; }
-  to { opacity: 0; background: rgba(6, 9, 14, 0); backdrop-filter: blur(0); }
-}
-@keyframes lb-orb-open { to { transform: scale(16); opacity: 0.6; } }
-@keyframes lb-text-out { to { opacity: 0; transform: translateY(-8px); filter: blur(6px); } }
+@keyframes lb-intro-lift { 55% { opacity: 1; } to { opacity: 0; } }
+@keyframes lb-orb-open { to { transform: scale(14); opacity: 0.5; } }
+@keyframes lb-text-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-10px); } }
 
-/* Reduced motion: no growth, sweep or stagger — a soft fade in and out. */
-.lb-intro-reduced .lb-orb { transform: none; animation: none; }
-.lb-intro-reduced :is(.lb-orb-blob, .lb-intro-word span, .lb-intro-sub) { animation: none; opacity: 1; transform: none; filter: none; }
-.lb-intro-reduced .lb-orb-blob { filter: blur(26px); }
-.lb-intro-reduced.lb-intro-out { animation: lb-splash-fade 0.25s linear forwards; }
-.lb-intro-reduced.lb-intro-out :is(.lb-orb, .lb-intro-word, .lb-intro-sub) { animation: none; }
-@keyframes lb-splash-fade { to { opacity: 0; } }
+/* While the intro is up, nothing else animates behind it. */
+html.lb-booting .lb-ambient::before,
+html.lb-booting .pmd-home-screen::before { animation-play-state: paused; }
+
+/* Reduced motion: the finished mark, a short fade, no growth or stagger. */
+@media (prefers-reduced-motion: reduce) {
+  .lb-intro .lb-orb { transform: none; animation: none; }
+  .lb-orb-field { animation: none; }
+  .lb-intro-word span, .lb-intro-sub { animation: none; opacity: 1; transform: none; }
+  html.lb-booting .lb-intro.lb-intro-out { animation: lb-intro-lift 0.25s linear forwards; }
+  .lb-intro-out .lb-orb, .lb-intro-out :is(.lb-intro-word, .lb-intro-sub) { animation: none; }
+}
 
 /* ── First-launch welcome ─────────────────────────────────────────── */
 
@@ -1022,10 +1053,8 @@ body.lb-case-mode .pmd-card.lb-arg:hover {
   width: 56px;
   height: 56px;
   transform: none;
-  animation: lb-orb-hue 6s linear infinite;
   box-shadow: 0 0 24px 2px rgba(var(--lb-accent-rgb), 0.45), inset 0 0 14px rgba(255, 255, 255, 0.15);
 }
-.lb-welcome-orb .lb-orb-blob { filter: blur(10px); }
 .lb-welcome-title { margin: 4px 0 0; font-size: 24px; font-weight: 720; letter-spacing: -0.025em; }
 .lb-welcome-lead { margin: -8px 0 4px; color: var(--pmd-c-text-muted); }
 .lb-welcome-label {
@@ -1184,22 +1213,10 @@ body {
   100% { transform: translate(0, 0); }
 }
 
-/* Grain on the intro's dimmed backdrop too. */
-.lb-intro::after {
-  content: '';
-  position: absolute;
-  inset: -60px;
-  background-image: var(--lb-grain);
-  background-size: 240px 240px;
-  opacity: 0.2;
-  mix-blend-mode: overlay;
-  pointer-events: none;
-  animation: lb-grain-shift 0.9s steps(6) infinite;
-}
 
 @media (prefers-reduced-motion: reduce) {
-  :is(.lb-ambient, .pmd-home-screen, .lb-welcome, .lb-intro)::before,
-  :is(.lb-ambient, .pmd-home-screen, .lb-welcome, .lb-intro)::after {
+  :is(.lb-ambient, .pmd-home-screen, .lb-welcome)::before,
+  :is(.lb-ambient, .pmd-home-screen, .lb-welcome)::after {
     animation: none;
   }
 }

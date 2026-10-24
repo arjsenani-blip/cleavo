@@ -1,51 +1,25 @@
 /**
- * Startup splash, after Arc's intro: the window dims, a fluid gradient
- * orb (colors drifting inside it) grows from a point with a spring, the
- * name staggers in letter by letter, then the orb opens outward to reveal
- * the app. Sound: a filtered-noise whoosh as the orb grows, a soft chord
- * with sparkle notes as the name lands, and a swell on the reveal — all
- * synthesized with Web Audio, no audio files.
+ * Startup intro, after Arc's: the window dims, a fluid gradient orb
+ * grows from a point with a spring, the name staggers in letter by
+ * letter, then the orb opens outward to reveal the app. Sound: a
+ * filtered-noise whoosh as the orb grows, a soft chord with sparkle notes
+ * as the name lands, and a swell on the reveal — all synthesized with Web
+ * Audio, no audio files.
  *
- * Plays every time the app opens (the launch's first window; windows
- * opened later skip it), never in the mobile layout, and only while
- * Settings → Startup animation is on. Reduced motion gets a short fade.
- * Any key or click skips it.
+ * The intro is part of index.html and a head script decides, before the
+ * first paint, whether it plays (html.lb-booting): the launch window on
+ * desktop, every load on the web, never when Settings → Startup animation
+ * is off or in the phone layout. Its CSS runs on the compositor, so it
+ * animates from the first frame while this bundle is still loading. This
+ * module only times the sound and the reveal against that start
+ * (window.__lbIntroT0) and cleans up. Any key or click skips it.
  */
 
 import { settings } from './settings.js';
-import { claimLaunchSplash } from './host/electron-host.js';
 
 const REVEAL_AT_MS = 2050;
 const REVEAL_MS = 650;
 const REDUCED_MS = 900;
-
-function el(cls: string, text?: string): HTMLDivElement {
-  const d = document.createElement('div');
-  d.className = cls;
-  if (text != null) d.textContent = text;
-  return d;
-}
-
-function buildOrb(): HTMLDivElement {
-  const orb = el('lb-orb');
-  for (let i = 1; i <= 4; i++) orb.append(el(`lb-orb-blob lb-orb-blob-${i}`));
-  orb.append(el('lb-orb-sheen'));
-  return orb;
-}
-
-/** "Cooky", one span per letter for the stagger. */
-function buildWord(): HTMLDivElement {
-  const word = el('lb-intro-word');
-  word.setAttribute('aria-label', 'Cooky');
-  [...'Cooky'].forEach((ch, i) => {
-    const s = document.createElement('span');
-    s.textContent = ch === ' ' ? ' ' : ch;
-    s.style.setProperty('--i', String(i));
-    s.setAttribute('aria-hidden', 'true');
-    word.append(s);
-  });
-  return word;
-}
 
 // ─── Sound ───────────────────────────────────────────────────────────
 
@@ -101,7 +75,9 @@ function tone(
   osc.stop(at + len + 0.05);
 }
 
-function playIntroSound(): void {
+/** Play the intro's sound, `elapsed` seconds into the intro (events that
+ *  have already passed are skipped, so it stays in sync with the visuals). */
+function playIntroSound(elapsed: number): void {
   const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!Ctx) return;
   let ctx: AudioContext;
@@ -127,47 +103,49 @@ function playIntroSound(): void {
   delay.connect(fb).connect(delay);
   delay.connect(wet).connect(ctx.destination);
 
-  const t = ctx.currentTime + 0.05;
-  // 1. The orb grows: a rising whoosh.
-  whoosh(ctx, master, t, 0.95, true, 0.22);
+  const t = ctx.currentTime + 0.03 - elapsed;
+  const due = (at: number) => t + at >= ctx.currentTime;
+  // 1. The orb grows: a rising whoosh (only if we're early enough).
+  if (elapsed < 0.3) whoosh(ctx, master, t + 0.12, 0.95, true, 0.22);
   // 2. The name lands: a warm A-major add9 pad…
   const pad: [number, number][] = [
     [220.0, -6], [329.63, 5], [440.0, -4], [493.88, 6], [554.37, 0],
   ];
-  for (const [f, d] of pad) {
-    tone(ctx, master, f, t + 0.78, 0.35, 2.4, 0.05, 'sine', d);
-    tone(ctx, master, f, t + 0.78, 0.45, 2.2, 0.012, 'triangle', -d);
+  if (due(0.78)) {
+    for (const [f, d] of pad) {
+      tone(ctx, master, f, t + 0.78, 0.35, 2.4, 0.05, 'sine', d);
+      tone(ctx, master, f, t + 0.78, 0.45, 2.2, 0.012, 'triangle', -d);
+    }
   }
   // …with sparkle notes on top.
   [1318.51, 1760.0, 2217.46, 2637.02].forEach((f, i) => {
-    tone(ctx, master, f, t + 0.86 + i * 0.07, 0.008, 0.9, 0.06);
+    const at = 0.86 + i * 0.07;
+    if (due(at)) tone(ctx, master, f, t + at, 0.008, 0.9, 0.06);
   });
   // 3. The reveal: a gentle swell back down.
-  whoosh(ctx, master, t + REVEAL_AT_MS / 1000 - 0.1, 0.7, false, 0.12);
-  tone(ctx, master, 880, t + REVEAL_AT_MS / 1000, 0.01, 1.2, 0.035);
+  const reveal = REVEAL_AT_MS / 1000;
+  if (due(reveal - 0.1)) whoosh(ctx, master, t + reveal - 0.1, 0.7, false, 0.12);
+  if (due(reveal)) tone(ctx, master, 880, t + reveal, 0.01, 1.2, 0.035);
 
   setTimeout(() => void ctx.close().catch(() => {}), 4500);
 }
 
 // ─── Play ────────────────────────────────────────────────────────────
 
-/** Show the intro when the app opens. Resolves once it has cleared. */
+/** Run the intro the page started (if it did). Resolves once it's gone. */
 export async function playStartupSplash(): Promise<void> {
-  if (!settings.get('startupAnimation')) return;
-  if (document.body.classList.contains('pmd-mobile')) return;
-  // Desktop: the first window of each launch (windows opened later skip
-  // it). Web: every load.
-  if ((await claimLaunchSplash()) === false) return;
-
+  const root = document.documentElement;
+  const overlay = document.getElementById('lb-intro');
+  if (!overlay) return;
+  if (!root.classList.contains('lb-booting')) {
+    overlay.remove();
+    return;
+  }
+  const t0 = (window as unknown as { __lbIntroT0?: number }).__lbIntroT0 ?? performance.now();
+  const elapsedMs = () => performance.now() - t0;
   const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-  const overlay = el(`lb-intro${reduced ? ' lb-intro-reduced' : ''}`);
-  overlay.setAttribute('role', 'presentation');
-  const stage = el('lb-intro-stage');
-  stage.append(buildOrb(), buildWord(), el('lb-intro-sub', 'Cut cards · Write cites · Find evidence'));
-  overlay.append(stage);
-  document.body.append(overlay);
 
-  if (settings.get('startupSound') && !reduced) playIntroSound();
+  if (settings.get('startupSound') && !reduced) playIntroSound(elapsedMs() / 1000);
 
   let done = false;
   await new Promise<void>((resolve) => {
@@ -178,11 +156,12 @@ export async function playStartupSplash(): Promise<void> {
       overlay.classList.add('lb-intro-out');
       setTimeout(() => {
         overlay.remove();
+        root.classList.remove('lb-booting');
         resolve();
       }, reduced ? 250 : REVEAL_MS);
     };
     overlay.addEventListener('pointerdown', finish);
     window.addEventListener('keydown', finish, true);
-    setTimeout(finish, reduced ? REDUCED_MS : REVEAL_AT_MS);
+    setTimeout(finish, Math.max(0, (reduced ? REDUCED_MS : REVEAL_AT_MS) - elapsedMs()));
   });
 }
