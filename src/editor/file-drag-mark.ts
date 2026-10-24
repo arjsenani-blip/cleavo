@@ -80,7 +80,7 @@ export function installFileDragMark(
     if (state.inert) el.dataset['inert'] = 'true';
     else delete el.dataset['inert'];
     el.title = state.title;
-    el.setAttribute('aria-label', state.title || 'CardMirror');
+    el.setAttribute('aria-label', state.title || 'Lucas’ Brain');
     el.setAttribute('aria-disabled', state.inert ? 'true' : 'false');
   };
 }

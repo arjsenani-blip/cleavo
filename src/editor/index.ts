@@ -180,6 +180,9 @@ import { pillScrollClearancePlugin } from './pill-scroll-clearance.js';
 import { scheduleIdle, cancelIdle, type IdleHandle } from './idle-scheduler.js';
 import { CommentsColumn, addCommentToSelection, FC_PREFIX, AI_PREFIX, NOTE_PREFIX } from './comments-ui.js';
 import { runAiCreateCite } from './ai/cite-creator.js';
+import { runPfCreateCite } from './ai/pf-cite.js';
+import { caseModePlugin } from './case-mode/case-mode-plugin.js';
+import { analyzeArguments, openEvidenceSearch, setupDock, toggleCaseMode } from './lb-dock.js';
 import { runReformatAllCites } from './ai/reformat-all-cites.js';
 import { runTranslate } from './translate.js';
 import { runRepairText } from './ai/repair-text.js';
@@ -413,6 +416,16 @@ setSaveHealListener(({ error, healed }) => {
 // GitHub buttons in the ribbon's right-hand grid (no-op under Electron).
 wireWebEditionHeaderButtons();
 wireStatusNotices();
+// Lucas' Brain right dock: argument map + evidence search.
+setupDock(() => view);
+for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-lb-command]')) {
+  btn.addEventListener('mousedown', (e) => e.preventDefault()); // keep the editor's selection
+  btn.addEventListener('click', () => {
+    const id = btn.dataset['lbCommand'] as AnyCommandId;
+    if (!view && VIEWLESS_RIBBON_COMMANDS.has(id)) runViewlessRibbon(id);
+    else runRibbon(id);
+  });
+}
 
 // (The pre-launch join-link and session-record gate overrides lived
 // here; the 2026-08-19 ungating made them redundant — the gate itself
@@ -1929,6 +1942,19 @@ const ribbonContext: RibbonContext = {
     if (!view) return;
     runAiCreateCite(view);
   },
+  pfCreateCite: () => {
+    if (!view) return;
+    void runPfCreateCite(view);
+  },
+  openEvidenceSearch: () => {
+    openEvidenceSearch();
+  },
+  toggleCaseMode: () => {
+    toggleCaseMode();
+  },
+  analyzeArguments: () => {
+    analyzeArguments();
+  },
   reformatAllCites: () => {
     if (!view) return;
     void runReformatAllCites(view);
@@ -2096,6 +2122,9 @@ const ribbonContext: RibbonContext = {
   },
   saveSendDoc: () => {
     void runSaveSendDocFlow();
+  },
+  saveToDownloads: () => {
+    void runSaveToDownloadsFlow();
   },
   saveReadDoc: () => {
     void runSaveReadDocFlow();
@@ -4533,6 +4562,9 @@ const VIEWLESS_RIBBON_COMMANDS = new Set<AnyCommandId>([
   'resetDefaultColors',
   'openFile',
   'saveAs',
+  'saveToDownloads',
+  'openEvidenceSearch',
+  'toggleCaseMode',
   'openShortcutsReference',
   // `newSpeechDocument` creates a fresh doc and routes it through a
   // slot — no source view required. The other three speech
@@ -4598,6 +4630,9 @@ function runViewlessRibbon(id: AnyCommandId): void {
     case 'openFile': ribbonContext.openFile(); return;
     case 'save': ribbonContext.save(); return;
     case 'saveAs': ribbonContext.saveAs(); return;
+    case 'saveToDownloads': ribbonContext.saveToDownloads(); return;
+    case 'openEvidenceSearch': ribbonContext.openEvidenceSearch(); return;
+    case 'toggleCaseMode': ribbonContext.toggleCaseMode(); return;
     case 'toggleAutosave': ribbonContext.toggleAutosave(); return;
     case 'openShortcutsReference': ribbonContext.openShortcutsReference(); return;
     case 'newSpeechDocument': ribbonContext.newSpeechDocument(); return;
@@ -5377,10 +5412,17 @@ function makeStarterDoc(): PMNode {
   const blank = () => n['paragraph']!.create(null);
 
   return n['doc']!.createChecked(null, [
-    n['pocket']!.create({ id: newHeadingId() }, schema.text('Welcome to CardMirror')),
+    n['pocket']!.create({ id: newHeadingId() }, schema.text('Welcome to Lucas’ Brain')),
     paraText(
-      'CardMirror is an editor for debate evidence that reads and writes the same Word .docx files as Verbatim. The boxed heading above is a Pocket — Verbatim\'s name for a top-level section. Everything below is live: type in it, edit it, and try the shortcuts as you go.',
+      'Lucas’ Brain is an editor for debate evidence, built on CardMirror, that reads and writes the same Word .docx files as Verbatim. The boxed heading above is a Pocket — Verbatim\'s name for a top-level section. Everything below is live: type in it, edit it, and try the shortcuts as you go.',
     ),
+    blank(),
+    n['hat']!.create({ id: newHeadingId() }, schema.text('What’s new in Lucas’ Brain')),
+    paraIndented('Create PF Cite (Mod-Alt-X): paste an article link and get the full NSDA cite — author, qualifications, date, title, publication, link, date accessed — signed with your signature, with an empty tag line above it for your tag.'),
+    paraIndented('Evidence Search (Mod-Alt-Shift-E): search OpenCaselist in plain words and insert cards as they were cut.'),
+    paraIndented('Case mode (Mod-Alt-Shift-M): every card glows by its role — cyan uniqueness, gold link, orange internal link, red impact — and missing pieces appear as empty pink boxes with Find evidence.'),
+    paraIndented('Save to Downloads (Mod-Alt-Shift-S): a .docx copy straight into your Downloads folder.'),
+    paraIndented('Shrink (Mod-8) now keeps highlighted and formatted text full size, like Verbatim.'),
     blank(),
     paraText(
       'This guide writes "Mod" for your main modifier key: Ctrl on Windows and Linux, ⌘ on macOS.',
@@ -5561,7 +5603,7 @@ function makeMobileStarterDoc(): PMNode {
   const blank = () => n['paragraph']!.create(null);
 
   return n['doc']!.createChecked(null, [
-    n['pocket']!.create({ id: newHeadingId() }, schema.text('Welcome to CardMirror')),
+    n['pocket']!.create({ id: newHeadingId() }, schema.text('Welcome to Lucas’ Brain')),
     paraText(
       'This is the mobile view — a quick way to read, navigate, and lightly edit your debate files. It opens and saves the same Word .docx files as Verbatim and the CardMirror desktop app.',
     ),
@@ -5842,6 +5884,9 @@ export function buildEditorPlugins(targetUid?: string | null): Plugin[] {
     // transaction lock + relayout hook (see reader-view.ts).
     readerViewPlugin,
     highlightFrequencyPlugin,
+    // Case mode: argument-role glows + missing-piece boxes (decorations
+    // only — see case-mode/case-mode-plugin.ts).
+    caseModePlugin,
     // Swallow the browser's `dragstart` on the editor's content-
     // editable so the user can't initiate a text-move drag from a
     // selection. (Text drag-and-drop never worked reliably, so it's
@@ -8030,12 +8075,12 @@ function updateWindowTitle(): void {
   if (multiDocActive && multiDocGetAllFilenames) {
     const names = multiDocGetAllFilenames().filter((n): n is string => !!n);
     document.title = names.length > 0
-      ? `${names.join(' · ')} — CardMirror`
-      : 'CardMirror';
+      ? `${names.join(' · ')} — Lucas’ Brain`
+      : 'Lucas’ Brain';
   } else {
     document.title = focused.filename
-      ? `${focused.filename} — CardMirror`
-      : 'CardMirror';
+      ? `${focused.filename} — Lucas’ Brain`
+      : 'Lucas’ Brain';
   }
   // In-app filename chip. The chip itself is CSS-hidden in
   // multi-pane mode (each per-pane chip shows the pane's own
@@ -8259,6 +8304,41 @@ async function confirmDocxDropsLiveLinks(): Promise<boolean> {
  *  where an escaped rejection silently aborts the close (field bug
  *  2026-07-12: "click Save As → nothing happens"). A crash anywhere in the
  *  flow now surfaces as an explicit dialog and reads as a failed save. */
+/** One-click "Save to Downloads": a full-fidelity .docx of the active
+ *  doc, written into ~/Downloads under the doc's name (a taken name gets
+ *  " (2)"). A copy, like Save Send Doc: the working doc keeps its own
+ *  file, name and dirty state. Off desktop, the browser download lands in Downloads the same way. */
+export async function runSaveToDownloadsFlow(): Promise<boolean> {
+  try {
+    if (!(await confirmDocxDropsLiveLinks())) return false;
+    const file = activeFile();
+    const filename = `${basenameWithoutExt(file.filename ?? 'Untitled')}.docx`;
+    const bytes = await serializeForSave('docx', {
+      includeComments: true,
+      includeAnalytics: true,
+      includeUndertags: true,
+      readMode: false,
+    });
+    const electron = getElectronHost();
+    const result = electron
+      ? await electron.saveToDownloads(filename, bytes)
+      : await getHost().saveAs(filename, bytes, { filters: saveFiltersForFormat('docx') });
+    if (!result) return false;
+    recordRecent({
+      handle: typeof result.handle === 'string' ? result.handle : null,
+      filename: result.name,
+      format: 'docx',
+    });
+    flashSaveSuccess();
+    showToast(`Saved ${result.name} to Downloads`, { durationMs: 3000 });
+    return true;
+  } catch (err) {
+    console.error('Save to Downloads failed:', err);
+    void alertDialog(`Save to Downloads failed: ${err instanceof Error ? err.message : err}`);
+    return false;
+  }
+}
+
 export async function runSaveAsFlow(): Promise<boolean> {
   try {
     return await runSaveAsFlowInner();

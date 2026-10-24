@@ -1,0 +1,638 @@
+/* ==========================================================================
+   Lucas' Brain theme — white & gold, with a soft neon-gold accent.
+
+   Loaded after style.css; overrides its color tokens and dresses the
+   chrome. Light: warm white surfaces, deep-gold text accents (#8A6A00,
+   4.99:1 on the page), bright gold (#F2C94C) for fills and glows with
+   ink text on it (10.9:1). Dark: warm near-black with soft gold
+   (#E8C468, 11.2:1). Glass is a light touch: translucent chrome over a
+   gentle blur, hairline borders, soft shadows — polish, not frost.
+   ========================================================================== */
+
+:root {
+  --lb-gold: #f2c94c;
+  --lb-gold-deep: #8a6a00;
+  --lb-gold-soft: rgba(242, 201, 76, 0.16);
+  --lb-gold-glow: rgba(242, 201, 76, 0.55);
+  --lb-ink: #1c1a17;
+  --lb-desk: #f4f1ea;
+  --lb-paper: #fffdf8;
+  --lb-glass: rgba(255, 253, 248, 0.72);
+  --lb-glass-strong: rgba(255, 253, 248, 0.88);
+  --lb-hairline: rgba(28, 26, 23, 0.09);
+  --lb-shadow-sm: 0 1px 2px rgba(28, 26, 23, 0.06), 0 1px 1px rgba(28, 26, 23, 0.04);
+  --lb-shadow-md: 0 8px 24px -8px rgba(28, 26, 23, 0.14), 0 2px 6px rgba(28, 26, 23, 0.06);
+  --lb-shadow-page: 0 1px 3px rgba(28, 26, 23, 0.08), 0 12px 40px -12px rgba(28, 26, 23, 0.18);
+  --lb-radius: 10px;
+  --lb-radius-lg: 14px;
+  --lb-dock-width: 360px;
+
+  /* Argument roles (glow colors). */
+  --lb-uq: 34, 211, 238;       /* cyan */
+  --lb-link: 242, 201, 76;     /* gold */
+  --lb-il: 251, 146, 60;       /* orange */
+  --lb-impact: 239, 68, 68;    /* red */
+  --lb-missing: 244, 63, 133;  /* pink-red */
+
+  --pmd-ui-font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --pmd-c-bg: var(--lb-paper);
+  --pmd-c-bg-soft: #faf7f0;
+  --pmd-c-surface-soft: #fbf9f4;
+  --pmd-c-surface: #f7f4ec;
+  --pmd-c-surface-alt: #efebe1;
+  --pmd-c-border: #ddd6c6;
+  --pmd-c-border-soft: #e6e0d2;
+  --pmd-c-divider: #ebe5d8;
+  --pmd-c-divider-faint: #f1ede3;
+  --pmd-c-text: var(--lb-ink);
+  --pmd-c-text-strong: #0d0c0a;
+  --pmd-c-text-secondary: #4f4a40;
+  --pmd-c-text-muted: #6b6558;
+  --pmd-c-text-faint: #8f887a;
+  --pmd-c-hover: rgba(242, 201, 76, 0.14);
+  --pmd-c-hover-strong: rgba(242, 201, 76, 0.24);
+  --pmd-c-button-hover: rgba(138, 106, 0, 0.08);
+  --pmd-c-button-active: rgba(138, 106, 0, 0.14);
+  --pmd-c-accent: var(--lb-gold-deep);
+  --pmd-c-accent-hover: #6f5500;
+  --pmd-c-accent-soft: var(--lb-gold-soft);
+  --pmd-c-focus: #d4a72c;
+  --pmd-c-text-on-accent: #fff;
+}
+
+:root[data-theme="dark"] {
+  --lb-gold: #e8c468;
+  --lb-gold-deep: #e8c468;
+  --lb-gold-soft: rgba(232, 196, 104, 0.16);
+  --lb-gold-glow: rgba(232, 196, 104, 0.5);
+  --lb-ink: #f3efe6;
+  --lb-desk: #0e0d10;
+  --lb-paper: #17161a;
+  --lb-glass: rgba(23, 22, 26, 0.72);
+  --lb-glass-strong: rgba(23, 22, 26, 0.9);
+  --lb-hairline: rgba(243, 239, 230, 0.09);
+  --lb-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --lb-shadow-md: 0 10px 30px -10px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(232, 196, 104, 0.06);
+  --lb-shadow-page: 0 0 0 1px rgba(243, 239, 230, 0.05), 0 18px 50px -18px rgba(0, 0, 0, 0.8);
+
+  --pmd-c-bg: #121116;
+  --pmd-c-bg-soft: #16151a;
+  --pmd-c-surface-soft: #18171c;
+  --pmd-c-surface: #1b1a20;
+  --pmd-c-surface-alt: #232129;
+  --pmd-c-border: #34313a;
+  --pmd-c-border-soft: #2c2a31;
+  --pmd-c-divider: #2a2830;
+  --pmd-c-divider-faint: #222027;
+  --pmd-c-text: #f3efe6;
+  --pmd-c-text-strong: #fff;
+  --pmd-c-text-secondary: #cfc8b9;
+  --pmd-c-text-muted: #a39b8a;
+  --pmd-c-text-faint: #7d7668;
+  --pmd-c-hover: rgba(232, 196, 104, 0.1);
+  --pmd-c-hover-strong: rgba(232, 196, 104, 0.18);
+  --pmd-c-button-hover: rgba(232, 196, 104, 0.08);
+  --pmd-c-button-active: rgba(232, 196, 104, 0.14);
+  --pmd-c-accent: #e8c468;
+  --pmd-c-accent-hover: #f5d27a;
+  --pmd-c-accent-soft: rgba(232, 196, 104, 0.16);
+  --pmd-c-focus: #e8c468;
+  --pmd-c-text-on-accent: #1c1a17;
+}
+
+/* ── Chrome: light glass ──────────────────────────────────────────── */
+
+body {
+  background: var(--lb-desk);
+  -webkit-font-smoothing: antialiased;
+}
+
+#ribbon,
+#status-bar {
+  background: var(--lb-glass);
+  backdrop-filter: saturate(160%) blur(18px);
+  -webkit-backdrop-filter: saturate(160%) blur(18px);
+  border-color: var(--lb-hairline);
+}
+#ribbon {
+  box-shadow: 0 1px 0 var(--lb-hairline), 0 6px 18px -14px rgba(28, 26, 23, 0.25);
+}
+/* A thin neon-gold line under the ribbon — the brand's one flourish. */
+#ribbon::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--lb-gold) 20%, var(--lb-gold) 80%, transparent);
+  opacity: 0.55;
+  box-shadow: 0 0 8px var(--lb-gold-glow);
+  pointer-events: none;
+}
+
+#nav-panel {
+  background: var(--lb-glass-strong);
+  backdrop-filter: saturate(140%) blur(14px);
+  -webkit-backdrop-filter: saturate(140%) blur(14px);
+  border-color: var(--lb-hairline);
+}
+
+#ribbon button,
+#status-bar button {
+  border-radius: 8px;
+  transition: background-color 120ms ease, box-shadow 120ms ease, color 120ms ease;
+}
+#ribbon button:hover:not(:disabled) {
+  background: var(--pmd-c-button-hover);
+}
+#ribbon button[aria-pressed='true'],
+#ribbon button.active {
+  background: var(--lb-gold-soft);
+  box-shadow: inset 0 0 0 1px rgba(242, 201, 76, 0.45);
+}
+
+:focus-visible {
+  outline: 2px solid var(--pmd-c-focus);
+  outline-offset: 2px;
+}
+
+/* Dialogs, menus and popovers pick up the same soft elevation. */
+:is(.pmd-modal, .pmd-dialog, .pmd-menu, .pmd-context-menu, .pmd-popover, .pmd-command-bar) {
+  border-radius: var(--lb-radius-lg);
+  box-shadow: var(--lb-shadow-md);
+  border-color: var(--lb-hairline);
+}
+
+.pmd-toast {
+  border-radius: 999px;
+  background: var(--lb-ink);
+  color: var(--lb-paper);
+  box-shadow: var(--lb-shadow-md), 0 0 0 1px rgba(242, 201, 76, 0.35);
+}
+
+/* ── Page view: the doc as a centered sheet ───────────────────────── */
+
+/* The desk around the page. Out-specifies the dark theme's "paint the
+   whole document area white" rule — in page view only the sheet is
+   white, so it reads as paper on a desk in either theme. */
+body.lb-page-view:not(.pmd-multi-doc) #app,
+body.lb-page-view :is(#editor, .pmd-pane-editor, .pmd-pane-body),
+:root[data-theme="dark"]:not([data-theme-doc="dark"]) body.lb-page-view:not(.pmd-multi-doc) #app,
+:root[data-theme="dark"]:not([data-theme-doc="dark"]) body.lb-page-view :is(#editor, .pmd-pane-editor, .pmd-pane-body) {
+  background: var(--lb-desk);
+}
+:root[data-theme="dark"]:not([data-theme-doc="dark"]) body.lb-page-view {
+  --lb-desk: #2a2830;
+}
+body.lb-page-view :is(#editor, .pmd-pane-editor) .ProseMirror {
+  box-sizing: border-box;
+  max-width: min(8.5in, calc(100% - 48px));
+  min-height: 11in;
+  margin: 28px auto 72px;
+  /* Real-page margins on a wide window; slimmer as the page narrows
+     (panels open), so text never gets squeezed into a sliver. */
+  padding: clamp(28px, 9%, 0.9in) clamp(20px, 9%, 0.85in);
+  background: var(--lb-paper);
+  border-radius: 4px;
+  box-shadow: var(--lb-shadow-page);
+}
+/* Multi-pane panes are narrower: a slimmer margin keeps text roomy. */
+body.lb-page-view .pmd-pane-editor .ProseMirror {
+  padding: clamp(20px, 7%, 0.6in) clamp(16px, 7%, 0.55in);
+  margin-top: 16px;
+}
+/* The document area keeps its own paper color under the dark chrome
+   unless the user applies the theme to the document. */
+:root[data-theme="dark"]:not([data-theme-doc="dark"]) body.lb-page-view :is(#editor, .pmd-pane-editor) .ProseMirror {
+  background: #fff;
+}
+
+/* ── Case mode: role glows and gap boxes (decorations only) ───────── */
+
+body.lb-case-mode .pmd-card.lb-arg {
+  border-radius: 10px;
+  transition: box-shadow 200ms ease;
+  box-shadow: 0 0 0 1.5px rgba(var(--lb-role), 0.75), 0 0 16px 1px rgba(var(--lb-role), 0.32);
+}
+body.lb-case-mode .pmd-card.lb-arg-uniqueness { --lb-role: var(--lb-uq); }
+body.lb-case-mode .pmd-card.lb-arg-link { --lb-role: var(--lb-link); }
+body.lb-case-mode .pmd-card.lb-arg-internal-link { --lb-role: var(--lb-il); }
+body.lb-case-mode .pmd-card.lb-arg-impact { --lb-role: var(--lb-impact); }
+body.lb-case-mode .pmd-card.lb-arg:hover {
+  box-shadow: 0 0 0 2px rgba(var(--lb-role), 0.9), 0 0 24px 3px rgba(var(--lb-role), 0.42);
+}
+
+.lb-gap {
+  margin: 14px 0;
+  padding: 16px 18px;
+  min-height: 72px;
+  border: 2px dashed rgba(var(--lb-missing), 0.85);
+  border-radius: 10px;
+  background: rgba(var(--lb-missing), 0.05);
+  box-shadow: 0 0 18px -2px rgba(var(--lb-missing), 0.35);
+  font-family: var(--pmd-ui-font);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--pmd-c-text-secondary);
+  user-select: none;
+  white-space: normal;
+}
+.lb-gap-head {
+  font-weight: 650;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgb(var(--lb-missing));
+  margin-bottom: 4px;
+}
+.lb-gap-need { margin-bottom: 10px; }
+.lb-gap-find {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--lb-missing), 0.6);
+  background: transparent;
+  color: rgb(var(--lb-missing));
+  cursor: pointer;
+}
+.lb-gap-find:hover { background: rgba(var(--lb-missing), 0.1); }
+
+/* ── Dock ─────────────────────────────────────────────────────────── */
+
+body.lb-dock-open:not(.pmd-multi-doc) #app,
+body.lb-dock-open #status-bar {
+  right: var(--lb-dock-width);
+}
+/* Multi-doc keeps #app in normal flow, so it makes room with a margin. */
+body.lb-dock-open.pmd-multi-doc #app {
+  margin-right: var(--lb-dock-width);
+}
+
+.lb-dock {
+  position: fixed;
+  top: var(--ribbon-height);
+  right: 0;
+  bottom: 0;
+  width: var(--lb-dock-width);
+  z-index: 210;
+  display: flex;
+  flex-direction: column;
+  background: var(--lb-glass-strong);
+  backdrop-filter: saturate(150%) blur(20px);
+  -webkit-backdrop-filter: saturate(150%) blur(20px);
+  border-left: 1px solid var(--lb-hairline);
+  box-shadow: -10px 0 30px -20px rgba(28, 26, 23, 0.3);
+  font-family: var(--pmd-ui-font);
+  color: var(--pmd-c-text);
+  font-size: 13px;
+}
+.lb-dock[hidden] { display: none; }
+
+.lb-dock-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 10px 10px 12px;
+  border-bottom: 1px solid var(--lb-hairline);
+}
+.lb-tabs {
+  flex: 1;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--pmd-c-surface-alt);
+}
+.lb-tab {
+  flex: 1;
+  font: inherit;
+  font-weight: 560;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--pmd-c-text-muted);
+  cursor: pointer;
+}
+.lb-tab-on {
+  background: var(--lb-paper);
+  color: var(--pmd-c-text);
+  box-shadow: var(--lb-shadow-sm), 0 0 0 1px rgba(242, 201, 76, 0.35);
+}
+:root[data-theme="dark"] .lb-tab-on { background: #2a2830; }
+.lb-icon-btn {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--pmd-c-text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.lb-icon-btn:hover { background: var(--pmd-c-button-hover); color: var(--pmd-c-text); }
+
+.lb-pane {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 14px 24px;
+}
+.lb-pane[hidden] { display: none; }
+
+.lb-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pmd-c-text-faint);
+  margin-bottom: 6px;
+}
+.lb-muted { color: var(--pmd-c-text-muted); line-height: 1.5; margin: 10px 0; }
+.lb-h { font-size: 15px; font-weight: 650; margin: 2px 0 4px; }
+.lb-error { color: var(--pmd-c-error); min-height: 1em; margin: 6px 0 0; }
+
+.lb-segmented {
+  display: flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 10px;
+  background: var(--pmd-c-surface-alt);
+  margin-bottom: 14px;
+}
+.lb-seg {
+  flex: 1;
+  font: inherit;
+  font-weight: 560;
+  padding: 7px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--pmd-c-text-muted);
+  cursor: pointer;
+}
+.lb-seg-on {
+  background: linear-gradient(180deg, #f6d873, var(--lb-gold));
+  color: #1c1a17;
+  box-shadow: 0 0 0 1px rgba(138, 106, 0, 0.25), 0 0 12px -2px var(--lb-gold-glow);
+}
+
+.lb-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.lb-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--c), 0.7);
+  background: rgba(var(--c), 0.1);
+  box-shadow: 0 0 8px -2px rgba(var(--c), 0.5);
+}
+.lb-chip-uniqueness { --c: var(--lb-uq); }
+.lb-chip-link { --c: var(--lb-link); }
+.lb-chip-internal-link { --c: var(--lb-il); }
+.lb-chip-impact { --c: var(--lb-impact); }
+.lb-chip-missing { --c: var(--lb-missing); border-style: dashed; }
+
+.lb-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--pmd-c-text-muted);
+  margin-bottom: 10px;
+}
+.lb-link-btn {
+  font: inherit;
+  font-size: 12px;
+  border: 0;
+  background: none;
+  color: var(--pmd-c-accent);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+.lb-link-btn:hover { background: var(--pmd-c-button-hover); }
+
+.lb-contention {
+  padding: 12px;
+  margin-bottom: 12px;
+  border-radius: var(--lb-radius);
+  background: var(--lb-paper);
+  border: 1px solid var(--lb-hairline);
+  box-shadow: var(--lb-shadow-sm);
+}
+:root[data-theme="dark"] .lb-contention { background: #1d1c22; }
+.lb-contention-title { font-size: 13px; font-weight: 650; margin: 0 0 8px; }
+.lb-card-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.lb-card-item {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.lb-card-item:hover { background: var(--pmd-c-hover); }
+.lb-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgb(var(--c, 160, 160, 160));
+  box-shadow: 0 0 6px rgba(var(--c, 160, 160, 160), 0.8);
+}
+.lb-role-uniqueness { --c: var(--lb-uq); }
+.lb-role-link { --c: var(--lb-link); }
+.lb-role-internal-link { --c: var(--lb-il); }
+.lb-role-impact { --c: var(--lb-impact); }
+.lb-card-tag { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-card-role { font-size: 11px; color: var(--pmd-c-text-faint); }
+
+.lb-gap-item {
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1.5px dashed rgba(var(--lb-missing), 0.75);
+  background: rgba(var(--lb-missing), 0.05);
+}
+.lb-gap-item-head { font-weight: 650; color: rgb(var(--lb-missing)); margin-bottom: 2px; }
+.lb-gap-item-need { color: var(--pmd-c-text-secondary); margin-bottom: 8px; line-height: 1.45; }
+.lb-complete { margin-top: 8px; font-size: 12px; color: var(--pmd-c-success); }
+
+.lb-input {
+  box-sizing: border-box;
+  width: 100%;
+  font: inherit;
+  font-size: 13px;
+  padding: 9px 11px;
+  margin: 6px 0;
+  border-radius: 9px;
+  border: 1px solid var(--pmd-c-border);
+  background: var(--lb-paper);
+  color: var(--pmd-c-text);
+  resize: vertical;
+}
+:root[data-theme="dark"] .lb-input { background: #1d1c22; }
+.lb-input:focus {
+  outline: none;
+  border-color: var(--lb-gold);
+  box-shadow: 0 0 0 3px var(--lb-gold-soft), 0 0 12px -4px var(--lb-gold-glow);
+}
+
+.lb-btn {
+  font: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 14px;
+  margin-top: 4px;
+  border: 0;
+  border-radius: 9px;
+  color: #1c1a17;
+  background: linear-gradient(180deg, #f6d873, var(--lb-gold));
+  box-shadow: 0 0 0 1px rgba(138, 106, 0, 0.25), 0 4px 14px -6px var(--lb-gold-glow);
+  cursor: pointer;
+}
+.lb-btn:hover { filter: brightness(1.04); box-shadow: 0 0 0 1px rgba(138, 106, 0, 0.3), 0 0 16px -2px var(--lb-gold-glow); }
+.lb-btn:disabled { opacity: 0.6; cursor: default; }
+.lb-btn-small { font-size: 12px; padding: 5px 11px; }
+
+.lb-search-top { display: flex; justify-content: space-between; align-items: center; }
+.lb-caselist-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--lb-gold-soft);
+  color: var(--pmd-c-accent);
+}
+.lb-progress { margin: 10px 0; font-size: 12px; color: var(--pmd-c-text-muted); min-height: 1em; }
+.lb-progress.lb-working::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--lb-gold);
+  box-shadow: 0 0 10px var(--lb-gold-glow);
+  animation: lb-pulse 1s ease-in-out infinite;
+}
+@keyframes lb-pulse { 50% { opacity: 0.35; transform: scale(0.8); } }
+@media (prefers-reduced-motion: reduce) {
+  .lb-progress.lb-working::before { animation: none; }
+}
+
+.lb-results { display: grid; gap: 10px; }
+.lb-result {
+  padding: 12px;
+  border-radius: var(--lb-radius);
+  background: var(--lb-paper);
+  border: 1px solid var(--lb-hairline);
+  box-shadow: var(--lb-shadow-sm);
+}
+:root[data-theme="dark"] .lb-result { background: #1d1c22; }
+.lb-result:hover { box-shadow: var(--lb-shadow-md); }
+.lb-result-tag { font-weight: 700; margin-bottom: 4px; line-height: 1.35; }
+.lb-result-cite { font-size: 11.5px; color: var(--pmd-c-text-muted); margin-bottom: 6px; line-height: 1.4; }
+.lb-result-why {
+  font-size: 12px;
+  color: var(--pmd-c-accent);
+  margin-bottom: 6px;
+  padding-left: 8px;
+  border-left: 2px solid var(--lb-gold);
+}
+.lb-result-body { font-family: var(--pmd-body-font, 'Times New Roman'), serif; font-size: 12.5px; line-height: 1.45; color: var(--pmd-c-text-secondary); }
+.lb-result-body.lb-full { white-space: pre-wrap; }
+.lb-result-src { font-size: 11px; color: var(--pmd-c-text-faint); margin-top: 6px; }
+.lb-result-actions { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+
+.lb-signin { display: block; }
+.lb-signin[hidden], .lb-search[hidden] { display: none; }
+
+/* Exports and print never see any of this. */
+@media print {
+  .lb-dock, .lb-gap { display: none !important; }
+  .pmd-card.lb-arg { box-shadow: none !important; }
+  body.lb-page-view :is(#editor, .pmd-pane-editor) .ProseMirror { box-shadow: none; margin: 0; padding: 0; max-width: none; }
+}
+
+/* ── Home screen ──────────────────────────────────────────────────── */
+
+.pmd-home-screen { background: var(--lb-desk); }
+.pmd-home-title {
+  letter-spacing: -0.02em;
+  font-weight: 720;
+}
+.pmd-home-title::after {
+  content: '';
+  display: block;
+  width: 44px;
+  height: 3px;
+  margin-top: 10px;
+  border-radius: 3px;
+  background: var(--lb-gold);
+  box-shadow: 0 0 12px var(--lb-gold-glow);
+}
+.pmd-home-action,
+.pmd-home-recent {
+  border-radius: 12px;
+  border-color: var(--lb-hairline);
+  background: var(--lb-paper);
+  box-shadow: var(--lb-shadow-sm);
+  transition: box-shadow 160ms ease, transform 160ms ease, border-color 160ms ease;
+}
+:root[data-theme="dark"] :is(.pmd-home-action, .pmd-home-recent) { background: #1b1a20; }
+.pmd-home-action:hover:not(:disabled),
+.pmd-home-recent:hover {
+  border-color: rgba(242, 201, 76, 0.55);
+  box-shadow: var(--lb-shadow-md), 0 0 0 1px rgba(242, 201, 76, 0.35), 0 0 18px -6px var(--lb-gold-glow);
+  transform: translateY(-1px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pmd-home-action:hover:not(:disabled), .pmd-home-recent:hover { transform: none; }
+}
+.pmd-home-section-title { letter-spacing: 0.08em; }
+
+/* ── Ribbon: Lucas' Brain group ───────────────────────────────────── */
+
+.lb-ribbon-group {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 3px 4px;
+  margin: 0 6px;
+  padding: 0 6px;
+  border-left: 1px solid var(--lb-hairline);
+  border-right: 1px solid var(--lb-hairline);
+}
+#ribbon .lb-ribbon-btn {
+  /* The ribbon sizes its buttons as square icons; these are labels. */
+  width: auto;
+  height: auto;
+  min-width: 0;
+  aspect-ratio: auto;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 5px 10px;
+  border: 1px solid rgba(242, 201, 76, 0.45);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--pmd-c-text);
+  white-space: nowrap;
+  cursor: pointer;
+}
+#ribbon .lb-ribbon-btn:hover {
+  background: var(--lb-gold-soft);
+  box-shadow: 0 0 10px -3px var(--lb-gold-glow);
+}
+#ribbon .lb-ribbon-btn[aria-pressed='true'] {
+  background: linear-gradient(180deg, #f6d873, var(--lb-gold));
+  color: #1c1a17;
+  border-color: rgba(138, 106, 0, 0.35);
+  box-shadow: 0 0 12px -2px var(--lb-gold-glow);
+}

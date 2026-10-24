@@ -1,7 +1,7 @@
 {
   "name": "@cardmirror/desktop",
   "version": "1.15.0",
-  "description": "CardMirror — Electron desktop wrapper",
+  "description": "Lucas' Brain — built on CardMirror (Electron desktop wrapper)",
   "author": "Anthony Trufanov",
   "homepage": "https://github.com/ant981228/cardmirror",
   "private": true,
@@ -24,9 +24,9 @@
     "dist:lite": "node scripts/inject-lite-build.cjs 1 && VITE_LITE=1 npm run dist -- -c.appId=com.cardmirror.lite -c.productName=\"CardMirror Lite\" -c.mac.artifactName=\"CardMirror-Lite-${version}-${arch}.${ext}\" -c.win.artifactName=\"CardMirror-Lite-Setup-${version}.${ext}\" -c.linux.artifactName=\"cardmirror-lite-${version}.${ext}\" -c.executableName=\"CardMirror Lite\" -c.linux.executableName=cardmirror-lite; node scripts/inject-lite-build.cjs 0"
   },
   "build": {
-    "appId": "com.cardmirror.app",
-    "productName": "CardMirror",
-    "executableName": "cardmirror",
+    "appId": "com.lucasbrain.app",
+    "productName": "Lucas Brain",
+    "executableName": "lucas-brain",
     "electronVersion": "42.2.0",
     "directories": {
       "output": "release",
@@ -69,8 +69,8 @@
     "fileAssociations": [
       {
         "ext": "cmir",
-        "name": "CardMirror Document",
-        "description": "CardMirror native document",
+        "name": "Lucas’ Brain Document",
+        "description": "Lucas’ Brain native document",
         "role": "Editor"
       }
     ],
@@ -92,12 +92,15 @@
       ],
       "extendInfo": {
         "NSAppSleepDisabled": true,
-        "NSMicrophoneUsageDescription": "CardMirror uses the microphone for voice control and dictation."
+        "NSMicrophoneUsageDescription": "Lucas’ Brain uses the microphone for voice control and dictation.",
+        "CFBundleDisplayName": "Lucas’ Brain",
+        "CFBundleName": "Lucas’ Brain"
       },
       "hardenedRuntime": true,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
-      "x64ArchFiles": "**/node_modules/@koromix/**"
+      "x64ArchFiles": "**/node_modules/@koromix/**",
+      "executableName": "Lucas Brain"
     },
     "win": {
       "target": [
@@ -126,7 +129,7 @@
           ]
         }
       ],
-      "artifactName": "cardmirror-${version}.${ext}"
+      "artifactName": "lucas-brain-${version}.${ext}"
     },
     "pacman": {
       "depends": [
@@ -144,11 +147,6 @@
         "snappy",
         "libxcrypt-compat"
       ]
-    },
-    "publish": {
-      "provider": "github",
-      "owner": "ant981228",
-      "repo": "cardmirror"
     },
     "afterSign": "scripts/sign-mac.js"
   },

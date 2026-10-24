@@ -161,6 +161,33 @@ export interface BulkCompressProgress extends BulkCompressSummary {
 /** The shape we expect the preload script to expose. Defined here
  *  (and not imported from the desktop workspace) so the editor
  *  doesn't take a build-time dependency on Electron-specific code. */
+/** Reply shape of the research / caselist IPC (web-research.ts). */
+export type ResearchResult<T> = ({ ok: true } & T) | { ok: false; error: string; status?: number };
+
+/** The research / caselist slice of the preload API, or null off desktop
+ *  (or on an older preload without it). */
+export interface ResearchApi {
+  fetchPage(url: string): Promise<ResearchResult<{ url: string; html: string }>>;
+  caselistStatus(): Promise<{ signedIn: boolean }>;
+  caselistLogin(username: string, password: string): Promise<ResearchResult<object>>;
+  caselistLogout(): Promise<void>;
+  caselistGet(route: string, query?: Record<string, string>): Promise<ResearchResult<{ data: unknown }>>;
+  caselistDownload(filePath: string): Promise<ResearchResult<{ bytes: Uint8Array }>>;
+}
+
+export function researchApi(): ResearchApi | null {
+  const x = (window as unknown as { electronAPI?: ElectronAPI }).electronAPI;
+  if (!x?.researchFetchPage || !x.caselistGet) return null;
+  return {
+    fetchPage: (url) => x.researchFetchPage!(url),
+    caselistStatus: () => x.caselistStatus!(),
+    caselistLogin: (u, p) => x.caselistLogin!(u, p),
+    caselistLogout: () => x.caselistLogout!(),
+    caselistGet: (route, query) => x.caselistGet!(route, query),
+    caselistDownload: (filePath) => x.caselistDownload!(filePath),
+  };
+}
+
 interface ElectronAPI {
   clipboardReadText(): Promise<string>;
   /** Main-process read of the html + plain clipboard flavors.
@@ -274,6 +301,13 @@ interface ElectronAPI {
     opts: { folder: string | null; siblingHandle: string | null; filename: string },
     bytes: Uint8Array,
   ): Promise<{ name: string; handle: string } | 'collision' | null>;
+  saveToDownloads?(filename: string, bytes: Uint8Array): Promise<{ name: string; handle: string }>;
+  researchFetchPage?(url: string): Promise<ResearchResult<{ url: string; html: string }>>;
+  caselistStatus?(): Promise<{ signedIn: boolean }>;
+  caselistLogin?(username: string, password: string): Promise<ResearchResult<object>>;
+  caselistLogout?(): Promise<void>;
+  caselistGet?(route: string, query?: Record<string, string>): Promise<ResearchResult<{ data: unknown }>>;
+  caselistDownload?(filePath: string): Promise<ResearchResult<{ bytes: Uint8Array }>>;
   listFilesRecursive(dir: string, ext: string): Promise<Array<{ path: string; relPath: string }>>;
   /** Ask main for a direct MessagePort to the file-index service; it
    *  arrives via the `cardmirror:file-index-port` window message (see
@@ -910,6 +944,15 @@ export class ElectronHost implements Host {
     bytes: Uint8Array,
   ): Promise<{ name: string; handle: string } | 'collision' | null> {
     return api().saveSendDoc(opts, bytes);
+  }
+
+  /** Write straight into ~/Downloads with a unique name. `null` on an
+   *  older preload without the handler (caller falls back to Save As). */
+  async saveToDownloads(
+    filename: string,
+    bytes: Uint8Array,
+  ): Promise<{ name: string; handle: string } | null> {
+    return (await api().saveToDownloads?.(filename, bytes)) ?? null;
   }
 
   async listFilesRecursive(dir: string, ext: string): Promise<Array<{ path: string; relPath: string }>> {

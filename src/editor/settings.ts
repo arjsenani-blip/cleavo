@@ -1597,6 +1597,16 @@ export interface Settings {
    *  full textarea makes more sense than an inline input. Empty
    *  string falls back to `DEFAULT_AI_CITE_PROMPT`. */
   aiCitePrompt: string;
+  /** Cutter signature appended to every cite the cite creators make
+   *  (AI and Public Forum), e.g. `// arjun 🦡`. Empty → no signature. */
+  citeSignature: string;
+  /** OpenCaselist caselist slug the evidence search uses (e.g.
+   *  `hspf25`). Empty → the newest Public Forum caselist. */
+  caselistSlug: string;
+  /** Case cutting (argument map + glows + gap boxes) vs block cutting. */
+  cuttingMode: 'case' | 'block';
+  /** Page view: the document as a centered sheet of paper. */
+  pageView: boolean;
   /** Translator backend. `'auto'` uses the AI provider when AI features
    *  are ready, otherwise MyMemory. `'mymemory'` (no key, works with AI
    *  off), `'anthropic'` (the AI-provider backend — follows the Comments
@@ -2061,6 +2071,10 @@ const DEFAULTS: Settings = {
     reflexive: 'themself',
   },
   aiCitePrompt: '',
+  citeSignature: '// arjun 🦡',
+  caselistSlug: '',
+  cuttingMode: 'block',
+  pageView: true,
   translationProvider: 'auto',
   translationTargetLang: 'en',
   translationSourceLang: 'auto',
@@ -4168,6 +4182,30 @@ export const SETTING_METADATA: SettingMeta[] = [
     aliases: ['clod', 'persona', 'clod activities', 'pronouns', 'clod name'],
   },
   {
+    key: 'pageView',
+    label: 'Page view',
+    description: 'Show the document as a centered page, like a PDF or Word’s print layout. Turn off to let text fill the window.',
+    kind: 'toggle',
+    category: 'appearance',
+    aliases: ['page view', 'pdf view', 'print layout', 'paper', 'centered document'],
+  },
+  {
+    key: 'citeSignature',
+    label: 'Cite signature',
+    description:
+      'Added to the end of every cite the cite creators make, so your cards are signed as you cut them. Leave empty for none.',
+    kind: 'text',
+    category: 'comments-ai',
+  },
+  {
+    key: 'caselistSlug',
+    label: 'OpenCaselist caselist',
+    description:
+      'Which caselist Evidence Search looks in, by its short name (for example hspf25 or hspolicy25). Leave empty to use the newest Public Forum caselist.',
+    kind: 'text',
+    category: 'comments-ai',
+  },
+  {
     key: 'aiCitePrompt',
     label: 'AI cite-creator prompt',
     description:
@@ -5284,6 +5322,14 @@ function sanitize(s: Settings): Settings {
     aiPersonaCustomPronouns: sanitizeCustomPronouns(s.aiPersonaCustomPronouns),
     aiCitePrompt:
       typeof s.aiCitePrompt === 'string' ? s.aiCitePrompt : DEFAULTS.aiCitePrompt,
+    citeSignature:
+      typeof s.citeSignature === 'string' ? s.citeSignature.slice(0, 80) : DEFAULTS.citeSignature,
+    cuttingMode: s.cuttingMode === 'case' ? 'case' : 'block',
+    pageView: s.pageView !== false,
+    caselistSlug:
+      typeof s.caselistSlug === 'string' && /^[\w-]{0,40}$/.test(s.caselistSlug.trim())
+        ? s.caselistSlug.trim()
+        : DEFAULTS.caselistSlug,
     translationProvider: (['auto', 'mymemory', 'anthropic', 'google'] as const).includes(
       s.translationProvider as Settings['translationProvider'],
     )

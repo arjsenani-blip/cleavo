@@ -37,6 +37,7 @@ import { autoUpdater } from 'electron-updater';
 import { bundlePathFromExe, launchSwapHelper, macBundleSelfUpdatable } from './mac-swap-update.js';
 import { registerVoiceIpc } from './voice/ipc';
 import { registerFlowIpc } from './flow-bridge.js';
+import { registerWebResearchIpc } from './web-research.js';
 import { registerPairingIpc, relayUrl } from './pairing-ipc.js';
 import { LITE_BUILD } from './lite-build.js';
 import {
@@ -162,8 +163,8 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 // pull the dump from there manually and attach it to a bug report.
 // No telemetry, no remote endpoint, no third-party SDK.
 crashReporter.start({
-  productName: 'CardMirror',
-  companyName: 'CardMirror',
+  productName: 'Lucas’ Brain',
+  companyName: 'Lucas’ Brain',
   submitURL: '',
   uploadToServer: false,
 });
@@ -436,7 +437,7 @@ function createWindow(initialDoc?: InitialDocPayload): BrowserWindow {
     // degradation from there.
     minWidth: 0,
     minHeight: 0,
-    title: 'CardMirror',
+    title: 'Lucas’ Brain',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -503,9 +504,9 @@ function createWindow(initialDoc?: InitialDocPayload): BrowserWindow {
     recentReloads.push(now);
     if (recentReloads.length > 3) {
       dialog.showErrorBox(
-        'CardMirror kept crashing',
+        'Lucas’ Brain kept crashing',
         'The editor window crashed several times in a row. Your unsaved work is preserved ' +
-          'in the recovery journal — please quit and reopen CardMirror.',
+          'in the recovery journal — please quit and reopen Lucas’ Brain.',
       );
       return;
     }
@@ -663,8 +664,12 @@ ipcMain.handle('host:toggle-devtools', (event) => {
  *  In dev (non-packaged) the menu shows a friendly note instead
  *  of running; the renderer path returns `'dev'` so the UI can
  *  do the same. */
+/** Lucas' Brain is a personal build of CardMirror: its updates would come
+ *  from CardMirror's own releases and replace it, so updating is off. */
+const UPDATES_DISABLED = true;
+
 ipcMain.handle('host:check-for-updates', async () => {
-  if (!app.isPackaged) return { status: 'dev' };
+  if (!app.isPackaged || UPDATES_DISABLED) return { status: 'dev' };
   return new Promise<{ status: 'latest' | 'updating' | 'error'; message?: string }>((resolve) => {
     const offNotAvailable = (): void => {
       autoUpdater.removeListener('update-not-available', notAvailable);
@@ -1478,6 +1483,31 @@ ipcMain.handle(
     return { name: path.basename(target), handle: target };
   },
 );
+
+/** One-click "Save to Downloads": write a new file into the user's
+ *  Downloads folder, never overwriting — a taken name gets " (2)",
+ *  " (3)", … like a browser download. */
+ipcMain.handle('host:save-to-downloads', async (_event, filename: unknown, bytes: unknown) => {
+  if (typeof filename !== 'string' || filename.length === 0) {
+    throw new Error('host:save-to-downloads: filename must be a non-empty string.');
+  }
+  const dir = app.getPath('downloads');
+  const safe = path.basename(filename).replace(/[\\/:*?"<>|]/g, '-');
+  const ext = path.extname(safe);
+  const stem = safe.slice(0, safe.length - ext.length) || 'Untitled';
+  const buf = bytesToBuffer(bytes);
+  for (let n = 1; n < 1000; n++) {
+    const target = path.join(dir, n === 1 ? `${stem}${ext}` : `${stem} (${n})${ext}`);
+    try {
+      await saveNewDoc(target, buf, { mkdir: true, failIfExists: true });
+      grantReadPath(target);
+      return { name: path.basename(target), handle: target };
+    } catch (err) {
+      if (!(err instanceof DocExistsError)) throw err;
+    }
+  }
+  throw new Error('Downloads already has 999 copies of this file name.');
+});
 
 ipcMain.handle(
   'host:save-existing',
@@ -2641,6 +2671,7 @@ registerVoiceIpc();
 
 // Verbatim Flow bridge (Windows COM → Excel). No-ops off Windows.
 registerFlowIpc();
+registerWebResearchIpc();
 
 // cardmirror-bridge plugin surface (plugin API v1): jump broadcast via
 // the fast-paste bridge, plus flow-app discovery / POST relay from the
@@ -3189,6 +3220,18 @@ interface UpdateCheckOpts {
  *  dialog only for the manual path (`opts.alertOnLatest`); the
  *  auto-launch path is a complete no-op in dev. */
 function runUpdateCheck(opts: UpdateCheckOpts): void {
+  if (UPDATES_DISABLED) {
+    const win = opts.alertOnLatest ? dialogParentWindow() : null;
+    if (win) {
+      void dialog.showMessageBox(win, {
+        type: 'info',
+        title: 'Updates',
+        message: 'Lucas’ Brain updates are installed by rebuilding it.',
+        detail: `Lucas’ Brain ${app.getVersion()} — built on CardMirror. Copyright (c) 2026 Anthony Trufanov. PolyForm Noncommercial License 1.0.0.`,
+      });
+    }
+    return;
+  }
   if (LITE_BUILD) return; // Lite never contacts the update host
   if (!app.isPackaged) {
     if (opts.alertOnLatest) {
@@ -3399,7 +3442,7 @@ function openTimerWindow(popoutOpts?: TimerPopoutOpts): void {
     skipTaskbar: true,
     alwaysOnTop: true,
     show: false,
-    title: 'Timer — CardMirror',
+    title: 'Timer — Lucas’ Brain',
     webPreferences: {
       // Minimal dedicated preload: exposes ONLY a resize call (see
       // timer-popout-preload.ts). Everything else the pop-out does
@@ -3563,7 +3606,7 @@ ipcMain.handle('host:update-chip-action', () => {
 });
 
 function startAutoUpdate(): void {
-  if (!app.isPackaged) return;
+  if (!app.isPackaged || UPDATES_DISABLED) return;
   // macOS: Squirrel.Mac can't INSTALL into unsigned/self-signed builds,
   // but electron-updater's download path (zip + sha512 verification
   // against the release metadata) works fine — so we stage manually via

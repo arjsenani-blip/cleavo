@@ -578,6 +578,24 @@ export function setTag(): Command {
       const id = DOC_HEADINGS.has(pname)
         ? ((parent.attrs['id'] as string | null) ?? newHeadingId())
         : newHeadingId();
+      // F7 on a cite: keep it a cite and give it an (empty, or typed-in-
+      // front) tag above — the cite never becomes tag text.
+      if (isCiteBlock(parent)) {
+        const split = splitLeadingTagText(parent);
+        const tagNode = schema.nodes['tag']!.create(
+          { id },
+          split ? stripPromotionMarksOnFragment(split.head) : Fragment.empty,
+        );
+        const cardNode = schema.nodes['card']!.create(null, [
+          tagNode,
+          asCiteSlot(split ? split.cite : parent.content),
+        ]);
+        const from = $from.before(base + 1);
+        const tr = state.tr.replaceWith(from, $from.after(base + 1), cardNode);
+        tr.setSelection(TextSelection.create(tr.doc, from + 2 + tagNode.content.size));
+        dispatch(tr);
+        return true;
+      }
       // Strip promotion-affected marks from the source content before
       // wrapping it — body-only named-style marks and direct overrides
       // don't belong on a tag's text.
@@ -613,11 +631,68 @@ export function setTag(): Command {
     }
 
     if ($from.depth === base + 2 && SPLITTABLE_BODY_SLOTS.has($from.parent.type.name)) {
+      // F7 on a cite inside a card starts a new card at that cite: an empty
+      // tag above it (caret there), the cite and what follows below.
+      if (isCiteBlock($from.parent)) return newCardAboveCite(state, dispatch, base);
       return splitContainerAtBody(state, dispatch, { mode: 'tag' });
     }
 
     return false;
   };
+}
+
+function newCardAboveCite(
+  state: EditorState,
+  dispatch: ((tr: Transaction) => void) | undefined,
+  base: number,
+): boolean {
+  const $from = state.selection.$from;
+  const container = $from.node(base + 1);
+  const index = $from.index(base + 1);
+  if (index === 0) return false;
+  if (!dispatch) return true;
+  const pre: PMNode[] = [];
+  const rest: PMNode[] = [];
+  container.forEach((c, _o, i) => {
+    if (i < index) pre.push(c);
+    else if (i === index) {
+      const split = splitLeadingTagText(c);
+      rest.push(asCiteSlot(split ? split.cite : c.content));
+    } else rest.push(c.type.name === 'analytic' ? schema.nodes['card_body']!.create(null, c.content) : c);
+  });
+  const split = splitLeadingTagText($from.parent);
+  const tagNode = schema.nodes['tag']!.create(
+    { id: newHeadingId() },
+    split ? stripPromotionMarksOnFragment(split.head) : Fragment.empty,
+  );
+  const from = $from.before(base + 1);
+  const kept = container.copy(Fragment.fromArray(pre));
+  const tr = state.tr.replaceWith(from, $from.after(base + 1), [
+    kept,
+    schema.nodes['card']!.create(null, [tagNode, ...rest]),
+  ]);
+  tr.setSelection(TextSelection.create(tr.doc, from + kept.nodeSize + 2 + tagNode.content.size));
+  dispatch(tr);
+  return true;
+}
+
+/** After a cite is written at `citePos`, give it an empty tag line above
+ *  (caret there) unless it already sits right under a tag. Appends the
+ *  steps to `tr`. Used by Create PF Cite, which writes the cite and
+ *  leaves the tag — and the cutting — to the debater. */
+export function ensureTagAboveCite(tr: Transaction, citePos: number): void {
+  const $c = tr.doc.resolve(Math.min(Math.max(citePos, 0), tr.doc.content.size));
+  if (!$c.parent.isTextblock || !isCiteBlock($c.parent)) return;
+  const base = structuralBaseDepth($c);
+  if ($c.depth === base + 2 && $c.index(base + 1) === 1 && $c.node(base + 1).firstChild?.type.name === 'tag') {
+    return;
+  }
+  const scratch = EditorState.create({ doc: tr.doc, selection: TextSelection.create(tr.doc, $c.pos) });
+  setTag()(scratch, (stepTr) => {
+    // Same starting doc, same steps → stepTr's caret is valid in tr.
+    for (const step of stepTr.steps) tr.step(step);
+    tr.setSelection(TextSelection.create(tr.doc, stepTr.selection.from));
+  });
 }
 
 /**
@@ -4420,6 +4495,58 @@ function bulkReplaceStructuralOnShadow(
   return true;
 }
 
+// ---- Cite guard: F7 / Mod-F7 never turn a cite into a tag ----
+//
+// Typing a tag above a cite and pressing F7 used to sweep the cite into
+// the tag (bold, outline-level, no longer a cite) whenever the selection
+// grazed the cite line, or when the tag text was typed on the cite's own
+// line. A textblock that carries the cite style is now kept as the new
+// card's cite instead; tag text typed in front of a cite on one line is
+// split off as the tag.
+
+function hasCiteMark(node: PMNode): boolean {
+  let found = false;
+  node.forEach((c) => {
+    if (!found && c.isText && c.marks.some((m) => m.type.name === 'cite_mark')) found = true;
+  });
+  return found;
+}
+
+/** A textblock that IS a cite (cite paragraph, or carries cite-styled
+ *  author/date text) — never promoted to a card head. */
+function isCiteBlock(node: PMNode): boolean {
+  return node.isTextblock && (node.type.name === 'cite_paragraph' || hasCiteMark(node));
+}
+
+/** "My tag text Smith 24, Professor…" on one line → [tag text, cite].
+ *  Null unless the block has real text before its first cite-marked run. */
+function splitLeadingTagText(node: PMNode): { head: Fragment; cite: Fragment } | null {
+  let offset = 0;
+  let citeAt = -1;
+  node.forEach((c) => {
+    if (citeAt === -1 && c.isText && c.marks.some((m) => m.type.name === 'cite_mark')) citeAt = offset;
+    offset += c.nodeSize;
+  });
+  if (citeAt <= 0) return null;
+  const head = node.content.cut(0, citeAt);
+  if (!head.textBetween(0, head.size, ' ').trim()) return null;
+  return { head, cite: node.content.cut(citeAt) };
+}
+
+/** The cite as a body slot of a card / analytic_unit. Keeps its marks. */
+function asCiteSlot(content: Fragment): PMNode {
+  return schema.nodes['cite_paragraph']!.create(null, content);
+}
+
+/** Append a cite slot to a freshly built card / analytic_unit. */
+function withCiteAppended(container: PMNode, cite: PMNode): PMNode {
+  return container.copy(container.content.addToEnd(cite));
+}
+
+function isHeadContainer(node: PMNode | undefined): node is PMNode {
+  return !!node && (node.type.name === 'card' || node.type.name === 'analytic_unit');
+}
+
 function transformDocChild(
   child: PMNode,
   childStart: number,
@@ -4432,6 +4559,19 @@ function transformDocChild(
 
   if (child.isTextblock) {
     // paragraph / pocket / hat / block / loose card_body / cite_paragraph / undertag
+    if ((opts.mode === 'tag' || opts.mode === 'analytic') && isCiteBlock(child)) {
+      const split = splitLeadingTagText(child);
+      if (split) {
+        out.push(withCiteAppended(asTransformed(child.copy(split.head), opts), asCiteSlot(split.cite)));
+        return;
+      }
+      // A cite right after a head this pass created joins it as its cite;
+      // otherwise it stays exactly as it was.
+      const prev = out[out.length - 1];
+      if (isHeadContainer(prev)) out[out.length - 1] = withCiteAppended(prev, asCiteSlot(child.content));
+      else out.push(child);
+      return;
+    }
     out.push(asTransformed(child, opts));
     return;
   }
@@ -4455,8 +4595,14 @@ function transformDocChild(
       // font-color marks; see clearReapplyFormatting), mirroring the
       // cursor re-press, but leaves the container intact.
       const sameType = isSameTypeTarget(g, opts);
-      const gTouched = inSel && !sameType;
-      if (gTouched) {
+      // Cites are never promoted: before any new head they stay put; after
+      // one, they move with it as its cite (cite guard above).
+      const citeGuard = (opts.mode === 'tag' || opts.mode === 'analytic') && isCiteBlock(g);
+      const gTouched = inSel && !sameType && !citeGuard;
+      const lastLifted = liftedChildren[liftedChildren.length - 1];
+      if (citeGuard && hitTouched && isHeadContainer(lastLifted)) {
+        liftedChildren[liftedChildren.length - 1] = withCiteAppended(lastLifted, asCiteSlot(g.content));
+      } else if (gTouched) {
         hitTouched = true;
         liftedChildren.push(asTransformed(g, opts));
       } else if (hitTouched) {
@@ -4609,6 +4755,10 @@ export type RibbonCommandId =
   | 'addNoteToSelection'
   | 'aiAskAboutSelection'
   | 'aiCreateCite'
+  | 'pfCreateCite'
+  | 'openEvidenceSearch'
+  | 'toggleCaseMode'
+  | 'analyzeArguments'
   | 'reformatAllCites'
   | 'translate'
   | 'repairText'
@@ -4652,6 +4802,7 @@ export type RibbonCommandId =
   | 'save'
   | 'saveAs'
   | 'saveSendDoc'
+  | 'saveToDownloads'
   | 'saveReadDoc'
   | 'saveMarkedCards'
   | 'toggleAutosave'
@@ -4878,6 +5029,10 @@ export const RIBBON_COMMAND_IDS: RibbonCommandId[] = [
   'addNoteToSelection',
   'aiAskAboutSelection',
   'aiCreateCite',
+  'pfCreateCite',
+  'openEvidenceSearch',
+  'toggleCaseMode',
+  'analyzeArguments',
   'reformatAllCites',
   'translate',
   'repairText',
@@ -4922,6 +5077,7 @@ export const RIBBON_COMMAND_IDS: RibbonCommandId[] = [
   'saveAs',
   'saveSendDoc',
   'saveReadDoc',
+  'saveToDownloads',
   'saveMarkedCards',
   'toggleAutosave',
   'newSpeechDocument',
@@ -5092,6 +5248,10 @@ export const RIBBON_COMMAND_LABELS: Record<RibbonCommandId, string> = {
   addNoteToSelection: 'Add Note to Selection',
   aiAskAboutSelection: 'Ask AI About Selection',
   aiCreateCite: 'Format Cite From Selection (AI)',
+  pfCreateCite: 'Create PF Cite From Link',
+  openEvidenceSearch: 'Evidence Search (OpenCaselist)',
+  toggleCaseMode: 'Switch Case / Block Mode',
+  analyzeArguments: 'Analyze Case Arguments',
   reformatAllCites: 'Reformat Every Cite in Document (AI)',
   translate: 'Translate Selection to Clipboard (AI)',
   repairText: 'Repair OCR/PDF Text (AI)',
@@ -5135,6 +5295,7 @@ export const RIBBON_COMMAND_LABELS: Record<RibbonCommandId, string> = {
   save: 'Save',
   saveAs: 'Save As…',
   saveSendDoc: 'Save Send Doc',
+  saveToDownloads: 'Save to Downloads (.docx)',
   saveReadDoc: 'Save Read Doc',
   saveMarkedCards: 'Save Marked Cards',
   toggleAutosave: 'Toggle Autosave',
@@ -5398,6 +5559,11 @@ export const RIBBON_COMMAND_ALIASES: Partial<Record<RibbonCommandId, readonly st
   toggleSubRole: ['substructure', 'sub number', 'sub letter', 'numbering', 'sublist', 'letter'],
   toggleNumRestart: ['restart numbering', 'start over', 'renumber', 'continue numbering', 'number restart'],
   saveSendDoc: ['send doc', 'export send doc', 'send version'],
+  pfCreateCite: ['pf cite','public forum cite','cite from link','cite from url','auto cite','nsda cite'],
+  openEvidenceSearch: ['caselist','opencaselist','wiki','evidence','search evidence','find cards','research agent'],
+  toggleCaseMode: ['case mode','block mode','case cutting','argument map','cutting mode'],
+  analyzeArguments: ['argument map','analyze case','uniqueness','link','impact','missing evidence','case analysis'],
+  saveToDownloads: ['downloads', 'save docx', 'export docx', 'download', 'save to computer', 'word file'],
   saveReadDoc: ['read doc', 'export read doc', 'read version', 'save read'],
   saveMarkedCards: ['marked cards', 'extract marked cards', 'export marked cards', 'save marked'],
   startFlowHost: ['warm flow', 'prewarm flow', 'flow connection', 'connect to flow', 'speed up flow'],
@@ -5494,6 +5660,10 @@ export const DEFAULT_RIBBON_KEYS: Record<RibbonCommandId, string | string[]> = {
   addNoteToSelection: 'Mod-Shift-n',
   aiAskAboutSelection: 'Mod-Shift-q',
   aiCreateCite: 'Mod-Shift-x',
+  pfCreateCite: 'Mod-Alt-x',
+  openEvidenceSearch: 'Mod-Alt-Shift-e',
+  toggleCaseMode: 'Mod-Alt-Shift-m',
+  analyzeArguments: '',
   // Deliberately unbound: one model request per cite in the document is
   // far too expensive to sit behind a stray chord. Bind it in Settings →
   // Keyboard shortcuts if you want one.
@@ -5548,6 +5718,7 @@ export const DEFAULT_RIBBON_KEYS: Record<RibbonCommandId, string | string[]> = {
   save: 'Mod-s',
   saveAs: 'Mod-Shift-s',
   saveSendDoc: 'Mod-Alt-s',
+  saveToDownloads: 'Mod-Alt-Shift-s',
   saveReadDoc: '',
   saveMarkedCards: 'Mod-Alt-m',
   toggleAutosave: '',
@@ -5773,6 +5944,14 @@ export interface RibbonContext {
   addNoteToSelection: () => void;
   aiAskAboutSelection: () => void;
   aiCreateCite: () => void;
+  /** Fetch the linked article and write a full NSDA Public Forum cite in place. */
+  pfCreateCite: () => void;
+  /** Open the OpenCaselist evidence search panel. */
+  openEvidenceSearch: () => void;
+  /** Switch between case-cutting mode (with the argument map) and block-cutting mode. */
+  toggleCaseMode: () => void;
+  /** Re-run the argument analysis for the case-mode sidebar. */
+  analyzeArguments: () => void;
   /** Confirm, then run the cite creator over every cite paragraph in the
    *  document — one model request each. */
   reformatAllCites: () => void;
@@ -5819,6 +5998,8 @@ export interface RibbonContext {
   save: () => void;
   saveAs: () => void;
   saveSendDoc: () => void;
+  /** Write a .docx of the doc straight into ~/Downloads, no dialog. */
+  saveToDownloads: () => void;
   saveReadDoc: () => void;
   saveMarkedCards: () => void;
   toggleAutosave: () => void;
@@ -6000,6 +6181,10 @@ const DEFAULT_RIBBON_CONTEXT: RibbonContext = {
   addNoteToSelection: () => {},
   aiAskAboutSelection: () => {},
   aiCreateCite: () => {},
+  pfCreateCite: () => {},
+  openEvidenceSearch: () => {},
+  toggleCaseMode: () => {},
+  analyzeArguments: () => {},
   reformatAllCites: () => {},
   translate: () => {},
   repairText: () => {},
@@ -6025,6 +6210,7 @@ const DEFAULT_RIBBON_CONTEXT: RibbonContext = {
   save: () => {},
   saveAs: () => {},
   saveSendDoc: () => {},
+  saveToDownloads: () => {},
   saveReadDoc: () => {},
   saveMarkedCards: () => {},
   toggleAutosave: () => {},
@@ -6321,6 +6507,30 @@ function commandFor(id: RibbonCommandId, ctx: RibbonContext): Command {
         ctx.aiAskAboutSelection();
         return true;
       };
+    case 'pfCreateCite':
+      return (_state, dispatch) => {
+        if (!dispatch) return true;
+        ctx.pfCreateCite();
+        return true;
+      };
+    case 'openEvidenceSearch':
+      return (_state, dispatch) => {
+        if (!dispatch) return true;
+        ctx.openEvidenceSearch();
+        return true;
+      };
+    case 'toggleCaseMode':
+      return (_state, dispatch) => {
+        if (!dispatch) return true;
+        ctx.toggleCaseMode();
+        return true;
+      };
+    case 'analyzeArguments':
+      return (_state, dispatch) => {
+        if (!dispatch) return true;
+        ctx.analyzeArguments();
+        return true;
+      };
     case 'aiCreateCite':
       return (state, dispatch) => {
         if (state.selection.empty) return false;
@@ -6539,6 +6749,12 @@ function commandFor(id: RibbonCommandId, ctx: RibbonContext): Command {
       return (_state, dispatch) => {
         if (!dispatch) return true;
         ctx.saveSendDoc();
+        return true;
+      };
+    case 'saveToDownloads':
+      return (_state, dispatch) => {
+        if (!dispatch) return true;
+        ctx.saveToDownloads();
         return true;
       };
     case 'saveReadDoc':

@@ -3764,17 +3764,31 @@ describe('F4–F7 promotion strips marks; tag↔analytic preserves them', () => 
     expect(hasMarkOnText(next!.doc, 'hello', 'font_size')).toBe(false);
   });
 
-  it('F7 setTag: paragraph with cite_mark+highlight → tag strips both', () => {
-    const cite = schema.marks['cite_mark']!.create();
+  it('F7 setTag: paragraph with bold+highlight → tag strips both', () => {
+    const bold = schema.marks['bold']!.create();
     const hl = schema.marks['highlight']!.create({ color: 'yellow' });
-    const para = schema.nodes['paragraph']!.create(null, schema.text('hello', [cite, hl]));
+    const para = schema.nodes['paragraph']!.create(null, schema.text('hello', [bold, hl]));
     const doc = makeDoc([para]);
     const state = cursorIn(doc, (n) => n.type.name === 'paragraph');
     const next = apply(state, setTag());
     expect(next).not.toBeNull();
     // After wrap: doc → card → tag → text 'hello'
-    expect(hasMarkOnText(next!.doc, 'hello', 'cite_mark')).toBe(false);
+    expect(hasMarkOnText(next!.doc, 'hello', 'bold')).toBe(false);
     expect(hasMarkOnText(next!.doc, 'hello', 'highlight')).toBe(false);
+  });
+
+  it('F7 setTag: a cite paragraph stays the cite (marks kept) under an empty tag', () => {
+    const cite = schema.marks['cite_mark']!.create();
+    const para = schema.nodes['paragraph']!.create(null, schema.text('hello', [cite]));
+    const doc = makeDoc([para]);
+    const state = cursorIn(doc, (n) => n.type.name === 'paragraph');
+    const next = apply(state, setTag());
+    expect(next).not.toBeNull();
+    const card = next!.doc.firstChild!;
+    expect(card.firstChild!.type.name).toBe('tag');
+    expect(card.firstChild!.textContent).toBe('');
+    expect(card.child(1).type.name).toBe('cite_paragraph');
+    expect(hasMarkOnText(next!.doc, 'hello', 'cite_mark')).toBe(true);
   });
 
   it('Mod-F7 setAnalytic on a card anchor tag: PRESERVES bold (same-tier swap)', () => {

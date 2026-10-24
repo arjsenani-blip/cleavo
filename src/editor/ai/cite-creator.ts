@@ -110,6 +110,19 @@ export interface AiCiteResult {
   tokens: string[];
 }
 
+/** Append the user's cutter signature (Settings → Cite signature, e.g.
+ *  `// arjun 🦡`) to a finished cite, once. The signature is plain text:
+ *  it never carries the cite mark, so tokens are unaffected. */
+export function withCiteSignature(
+  result: AiCiteResult,
+  signature: string = settings.get('citeSignature'),
+): AiCiteResult {
+  const sig = signature.trim();
+  const cite = result.cite.trimEnd();
+  if (!sig || cite.endsWith(sig)) return result;
+  return { ...result, cite: `${cite} ${sig}` };
+}
+
 /** Format today's date as M-D-YYYY, matching the cite convention. */
 function formatToday(now: Date = new Date()): string {
   return `${now.getMonth() + 1}-${now.getDate()}-${now.getFullYear()}`;
@@ -408,7 +421,7 @@ export function runAiCreateCite(view: EditorView): void {
         system: systemPrompt,
         messages: [{ role: 'user', content: raw }],
       });
-      const parsed = parseCiteResponse(reply.text);
+      const parsed = withCiteSignature(parseCiteResponse(reply.text));
       // Apply at the lease's CURRENT (remapped) bounds — edits elsewhere in
       // the doc during the request have shifted them. Null means the range
       // collapsed (its container was removed); surface that as a toast.

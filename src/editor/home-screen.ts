@@ -162,11 +162,11 @@ class HomeScreen {
     header.appendChild(this.backBtn);
     const title = document.createElement('h1');
     title.className = 'pmd-home-title';
-    title.textContent = 'CardMirror';
+    title.textContent = 'Lucas’ Brain';
     header.appendChild(title);
     const tagline = document.createElement('p');
     tagline.className = 'pmd-home-tagline';
-    tagline.textContent = 'Open a document to start, or pick up where you left off.';
+    tagline.textContent = 'Cut cards, write cites, and find evidence. Open a document or pick up where you left off.';
     header.appendChild(tagline);
     // Update button — the status-bar chip is under the overlay, so an
     // update would otherwise need a document open to install. Hidden

@@ -313,6 +313,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
       { name: string; handle: string } | 'collision' | null
     >,
 
+  /** Research network calls (web-research.ts): page fetch for the PF
+   *  cite creator and the read-only OpenCaselist client. */
+  researchFetchPage: (url: string) => ipcRenderer.invoke('research:fetch-page', url),
+  caselistStatus: () => ipcRenderer.invoke('caselist:status') as Promise<{ signedIn: boolean }>,
+  caselistLogin: (username: string, password: string) =>
+    ipcRenderer.invoke('caselist:login', username, password),
+  caselistLogout: () => ipcRenderer.invoke('caselist:logout') as Promise<void>,
+  caselistGet: (route: string, query?: Record<string, string>) =>
+    ipcRenderer.invoke('caselist:get', route, query ?? {}),
+  caselistDownload: (filePath: string) => ipcRenderer.invoke('caselist:download', filePath),
+
+  /** One-click write into the Downloads folder (never overwrites). */
+  saveToDownloads: (filename: string, bytes: Uint8Array) =>
+    ipcRenderer.invoke('host:save-to-downloads', filename, bytes) as Promise<{
+      name: string;
+      handle: string;
+    }>,
+
   /** Bulk-convert helpers: recursively list files of an extension
    *  under a directory, and write bytes to an arbitrary path. */
   listFilesRecursive: (dir: string, ext: string) =>

@@ -3,13 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="A debate-card editor that interoperates with Advanced Verbatim — cut, format, and organize evidence offline." />
-    <meta name="theme-color" content="#2563eb" />
+    <meta name="description" content="Lucas’ Brain — a debate-card editor built on CardMirror: cut, cite, and research evidence, with Verbatim-compatible .docx." />
+    <meta name="theme-color" content="#f2c94c" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-    <title>CardMirror</title>
+    <title>Lucas’ Brain</title>
     <link rel="stylesheet" href="/src/editor/style.css" />
     <link rel="stylesheet" href="/src/editor/icons.css" />
+    <link rel="stylesheet" href="/src/editor/lucas-theme.css" />
   </head>
   <body>
     <header id="ribbon">
@@ -198,6 +199,18 @@
                   title="Read mode" aria-label="Read mode"><span class="pmd-icon pmd-icon-read-mode" aria-hidden="true"></span></button>
           <button id="reader-view-btn" class="ribbon-doc-ops-btn" type="button"
                   title="Reading view" aria-label="Reading view"><span class="pmd-icon pmd-icon-book" aria-hidden="true"></span></button>
+        </div>
+        <!-- Lucas' Brain: the four everyday additions, labeled so they're
+             findable without the shortcuts (2 × 2). -->
+        <div id="lb-ops-panel" class="lb-ribbon-group" role="group" aria-label="Lucas’ Brain">
+          <button class="lb-ribbon-btn" type="button" data-lb-command="pfCreateCite"
+                  title="Create PF Cite — paste an article link (⌘⌥X)">PF Cite</button>
+          <button class="lb-ribbon-btn" type="button" data-lb-command="openEvidenceSearch"
+                  title="Evidence Search on OpenCaselist (⌘⌥⇧E)">Evidence</button>
+          <button id="lb-mode-btn" class="lb-ribbon-btn" type="button" data-lb-command="toggleCaseMode"
+                  aria-pressed="false" title="Switch Case / Block mode (⌘⌥⇧M)">Block mode</button>
+          <button class="lb-ribbon-btn" type="button" data-lb-command="saveToDownloads"
+                  title="Save a .docx to Downloads (⌘⌥⇧S)">Save .docx</button>
         </div>
         <div id="comments-ops-panel" class="ribbon-doc-ops-panel ribbon-doc-ops-panel-3col" role="group" aria-label="Comments">
           <!-- 2-row × 3-col grid (row-major):
