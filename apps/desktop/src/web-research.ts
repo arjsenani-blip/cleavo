@@ -18,7 +18,7 @@ const CASELIST_API = 'https://api.opencaselist.com/v1';
 const FETCH_TIMEOUT_MS = 20_000;
 const MAX_PAGE_BYTES = 4 * 1024 * 1024;
 const MAX_DOWNLOAD_BYTES = 30 * 1024 * 1024;
-const USER_AGENT = 'LucasBrain/1.0 (debate research; +https://github.com/ant981228/cardmirror)';
+const USER_AGENT = 'Cooky/1.0 (debate research; +https://github.com/ant981228/cardmirror)';
 
 export type Result<T> = ({ ok: true } & T) | { ok: false; error: string; status?: number };
 

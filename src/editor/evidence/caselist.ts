@@ -78,19 +78,64 @@ export async function signOut(): Promise<void> {
 }
 
 let caselistsCache: CaselistInfo[] | null = null;
+let probedShard: string | null = null;
 
+/** Pull the array out of a reply that is either the array itself or an
+ *  object wrapping it ({ caselists: [...] }, { data: [...] }, …). */
+function asArray(data: unknown): unknown[] {
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === 'object') {
+    for (const v of Object.values(data as Record<string, unknown>)) if (Array.isArray(v)) return v;
+  }
+  return [];
+}
+
+function toCaselist(raw: unknown): CaselistInfo | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const c = raw as Record<string, unknown>;
+  const slug = typeof c['slug'] === 'string' ? c['slug'] : typeof c['name'] === 'string' && /^[\w-]+$/.test(c['name']) ? c['name'] : '';
+  if (!slug) return null;
+  return {
+    slug,
+    name: String(c['display_name'] ?? c['name'] ?? slug),
+    event: String(c['event'] ?? ''),
+    year: Number(c['year'] ?? 0),
+    archived: c['archived'] === true || c['archived'] === 1,
+  };
+}
+
+/** Current and archived caselists, merged. An empty answer is never
+ *  cached, so a hiccup doesn't stick for the session. */
 export async function listCaselists(): Promise<CaselistInfo[]> {
   if (caselistsCache) return caselistsCache;
-  const data = await getJson('/caselists', { archived: 'true' });
-  caselistsCache = (Array.isArray(data) ? data : [])
-    .map((c) => c as Partial<CaselistInfo>)
-    .filter((c): c is CaselistInfo => typeof c.slug === 'string')
-    .map((c) => ({ ...c, event: String(c.event ?? ''), year: Number(c.year ?? 0), archived: !!c.archived }));
-  return caselistsCache;
+  const [current, archived] = await Promise.all([
+    getJson('/caselists').catch((e: unknown) => {
+      if (e instanceof CaselistError && e.needsSignIn) throw e;
+      return [];
+    }),
+    getJson('/caselists', { archived: 'true' }).catch(() => []),
+  ]);
+  const bySlug = new Map<string, CaselistInfo>();
+  for (const raw of [...asArray(current), ...asArray(archived)]) {
+    const c = toCaselist(raw);
+    if (c && !bySlug.has(c.slug)) bySlug.set(c.slug, c);
+  }
+  const list = [...bySlug.values()];
+  if (list.length > 0) caselistsCache = list;
+  return list;
+}
+
+/** Season years to try when the caselist list can't be read: the
+ *  current season (it rolls over in August) and the one before. */
+function seasonSuffixes(now: Date = new Date()): string[] {
+  const y = now.getFullYear() % 100;
+  const season = now.getMonth() >= 7 ? y + 1 : y;
+  return [season, season - 1].map((n) => String(n).padStart(2, '0'));
 }
 
 /** The caselist to search: Settings → OpenCaselist caselist, else the
- *  newest Public Forum caselist. */
+ *  newest Public Forum caselist, else (list unreadable) the first of this
+ *  and last season's PF caselists that answers a search. */
 export async function activeCaselist(): Promise<string> {
   const chosen = settings.get('caselistSlug').trim();
   if (chosen) return chosen;
@@ -99,8 +144,21 @@ export async function activeCaselist(): Promise<string> {
     .filter((c) => /\bpf\b|public\s*forum/i.test(`${c.event} ${c.name}`) || /pf/i.test(c.slug))
     .sort((a, b) => Number(a.archived) - Number(b.archived) || b.year - a.year);
   const pick = pf[0] ?? [...lists].sort((a, b) => b.year - a.year)[0];
-  if (!pick) throw new CaselistError('No caselists are available to search.');
-  return pick.slug;
+  if (pick) return pick.slug;
+  if (probedShard) return probedShard;
+  for (const yy of seasonSuffixes()) {
+    const shard = `hspf${yy}`;
+    try {
+      await getJson('/search', { q: 'evidence', shard });
+      probedShard = shard;
+      return shard;
+    } catch (e) {
+      if (e instanceof CaselistError && e.needsSignIn) throw e;
+    }
+  }
+  throw new CaselistError(
+    'OpenCaselist didn’t list any caselists for this account. Type a caselist name (for example hspf26) in the box above the search.',
+  );
 }
 
 export async function search(query: string, shard: string): Promise<SearchHit[]> {

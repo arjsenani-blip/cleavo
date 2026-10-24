@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Lucas’ Brain — a debate-card editor built on CardMirror: cut, cite, and research evidence, with Verbatim-compatible .docx." />
-    <meta name="theme-color" content="#f2c94c" />
+    <meta name="description" content="Cooky — a debate-card editor built on CardMirror: cut, cite, and research evidence, with Verbatim-compatible .docx." />
+    <meta name="theme-color" content="#22d3ee" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-    <title>Lucas’ Brain</title>
+    <title>Cooky</title>
     <link rel="stylesheet" href="/src/editor/style.css" />
     <link rel="stylesheet" href="/src/editor/icons.css" />
     <link rel="stylesheet" href="/src/editor/lucas-theme.css" />
@@ -200,21 +200,23 @@
           <button id="reader-view-btn" class="ribbon-doc-ops-btn" type="button"
                   title="Reading view" aria-label="Reading view"><span class="pmd-icon pmd-icon-book" aria-hidden="true"></span></button>
         </div>
-        <!-- Lucas' Brain: the everyday additions, labeled so they're
-             findable without the shortcuts (3 × 2). -->
-        <div id="lb-ops-panel" class="lb-ribbon-group" role="group" aria-label="Lucas’ Brain">
+        <!-- Cooky: the everyday additions, labeled so they're
+             findable without the shortcuts (4 × 2). -->
+        <div id="lb-ops-panel" class="lb-ribbon-group" role="group" aria-label="Cooky">
           <button class="lb-ribbon-btn" type="button" data-lb-command="pfCreateCite"
                   title="Create PF Cite — paste an article link (⌘⌥X)">PF Cite</button>
           <button class="lb-ribbon-btn" type="button" data-lb-command="openEvidenceSearch"
                   title="Evidence Search on OpenCaselist (⌘⌥⇧E)">Evidence</button>
           <button class="lb-ribbon-btn" type="button" data-lb-command="shrink"
                   title="Shrink the card's plain text — select a whole card to shrink only unhighlighted, unformatted text (⌘8)">Shrink</button>
+          <button class="lb-ribbon-btn" type="button" data-lb-command="regrow"
+                  title="Unshrink — return shrunk text to normal size (⌘⇧8)">Unshrink</button>
           <button id="lb-mode-btn" class="lb-ribbon-btn" type="button" data-lb-command="toggleCaseMode"
                   aria-pressed="false" title="Switch Case / Block mode (⌘⌥⇧M)">Block mode</button>
           <button class="lb-ribbon-btn" type="button" data-lb-command="saveToDownloads"
                   title="Save a .docx to Downloads (⌘⌥⇧S)">Save .docx</button>
-          <button class="lb-ribbon-btn" type="button" data-lb-command="regrow"
-                  title="Unshrink — return shrunk text to normal size (⌘⇧8)">Unshrink</button>
+          <button id="lb-theme-btn" class="lb-ribbon-btn" type="button"
+                  title="Switch between light and dark mode">Dark</button>
         </div>
         <div id="comments-ops-panel" class="ribbon-doc-ops-panel ribbon-doc-ops-panel-3col" role="group" aria-label="Comments">
           <!-- 2-row × 3-col grid (row-major):

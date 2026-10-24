@@ -124,7 +124,7 @@ function buildAppBar(): HTMLElement {
  *  open/save/dirty change; observing it avoids new exports. */
 function syncTitle(el: HTMLSpanElement): void {
   const apply = (): void => {
-    el.textContent = document.title.replace(/\s*[—-]\s*Lucas’ Brain\s*$/, '') || 'Lucas’ Brain';
+    el.textContent = document.title.replace(/\s*[—-]\s*Cooky\s*$/, '') || 'Cooky';
   };
   apply();
   const titleEl = document.querySelector('title');

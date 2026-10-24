@@ -175,6 +175,13 @@ export interface ResearchApi {
   caselistDownload(filePath: string): Promise<ResearchResult<{ bytes: Uint8Array }>>;
 }
 
+/** Desktop: whether this window should play the startup splash (the
+ *  first window of the launch). Null off desktop / on an older preload. */
+export async function claimLaunchSplash(): Promise<boolean | null> {
+  const x = (window as unknown as { electronAPI?: ElectronAPI }).electronAPI;
+  return x?.claimLaunchSplash ? x.claimLaunchSplash() : null;
+}
+
 export function researchApi(): ResearchApi | null {
   const x = (window as unknown as { electronAPI?: ElectronAPI }).electronAPI;
   if (!x?.researchFetchPage || !x.caselistGet) return null;
@@ -302,6 +309,7 @@ interface ElectronAPI {
     bytes: Uint8Array,
   ): Promise<{ name: string; handle: string } | 'collision' | null>;
   saveToDownloads?(filename: string, bytes: Uint8Array): Promise<{ name: string; handle: string }>;
+  claimLaunchSplash?(): Promise<boolean>;
   researchFetchPage?(url: string): Promise<ResearchResult<{ url: string; html: string }>>;
   caselistStatus?(): Promise<{ signedIn: boolean }>;
   caselistLogin?(username: string, password: string): Promise<ResearchResult<object>>;

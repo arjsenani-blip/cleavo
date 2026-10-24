@@ -1,4 +1,4 @@
-# Lucas' Brain
+# Cooky
 
 A personal build of [CardMirror](https://github.com/ant981228/cardmirror) 1.15.0 for Public Forum debate.
 It reads and writes the same Verbatim `.docx` files, with these additions:
@@ -19,7 +19,7 @@ Settings → Comments & AI also has **OpenCaselist caselist** (leave empty for t
 
 ```bash
 npm install && npm --prefix apps/desktop install
-npm run desktop:pack     # → apps/desktop/release/mac-universal/Lucas Brain.app
+npm run desktop:pack     # → apps/desktop/release/mac-universal/Cooky.app
 ```
 
 Auto-update is off in this build: CardMirror's own updates would replace it.
@@ -27,5 +27,5 @@ Auto-update is off in this build: CardMirror's own updates would replace it.
 ## License
 
 Required Notice: Copyright (c) 2026 Anthony Trufanov. CardMirror is licensed under the
-PolyForm Noncommercial License 1.0.0 (see `LICENSE`). Lucas' Brain is a modified version for
+PolyForm Noncommercial License 1.0.0 (see `LICENSE`). Cooky is a modified version for
 personal, noncommercial use and is distributed under the same license.

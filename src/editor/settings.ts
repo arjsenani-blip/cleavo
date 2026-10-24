@@ -1607,6 +1607,15 @@ export interface Settings {
   cuttingMode: 'case' | 'block';
   /** Page view: the document as a centered sheet of paper. */
   pageView: boolean;
+  /** Your name, for the home screen greeting. */
+  userName: string;
+  /** Accent color for the whole app (hex). */
+  accentColor: string;
+  /** The first-launch welcome (name + debate tag) has been completed. */
+  onboarded: boolean;
+  /** Startup splash animation, and its chime. */
+  startupAnimation: boolean;
+  startupSound: boolean;
   /** Translator backend. `'auto'` uses the AI provider when AI features
    *  are ready, otherwise MyMemory. `'mymemory'` (no key, works with AI
    *  off), `'anthropic'` (the AI-provider backend — follows the Comments
@@ -2075,6 +2084,11 @@ const DEFAULTS: Settings = {
   caselistSlug: '',
   cuttingMode: 'block',
   pageView: true,
+  userName: '',
+  accentColor: '#22d3ee',
+  onboarded: false,
+  startupAnimation: true,
+  startupSound: true,
   translationProvider: 'auto',
   translationTargetLang: 'en',
   translationSourceLang: 'auto',
@@ -2332,6 +2346,70 @@ export interface SettingMeta {
 }
 
 export const SETTING_METADATA: SettingMeta[] = [
+  {
+    key: 'userName',
+    label: 'Your name',
+    description: 'Used to greet you on the home screen.',
+    kind: 'text',
+    category: 'general',
+    section: 'Cooky',
+    aliases: ['name', 'greeting', 'profile'],
+  },
+  {
+    key: 'citeSignature',
+    label: 'Debate tag',
+    description:
+      'Added to the end of every cite the cite creators make, so your cards are signed as you cut them. Leave empty for none.',
+    kind: 'text',
+    category: 'general',
+    section: 'Cooky',
+  },
+  {
+    key: 'accentColor',
+    label: 'Accent color',
+    description: 'The color of buttons, highlights and glows throughout Cooky. Any color works — text shades are adjusted to stay readable.',
+    kind: 'color',
+    category: 'general',
+    section: 'Cooky',
+    aliases: ['accent', 'theme color', 'color', 'brand color'],
+  },
+  {
+    key: 'pageView',
+    label: 'Page view',
+    description: 'Show the document as a centered page, like a PDF or Word’s print layout. Turn off to let text fill the window.',
+    kind: 'toggle',
+    category: 'general',
+    section: 'Cooky',
+    aliases: ['page view', 'pdf view', 'print layout', 'paper', 'centered document'],
+  },
+  {
+    key: 'startupAnimation',
+    label: 'Startup animation',
+    description: 'Play the Cooky animation when the app opens.',
+    kind: 'toggle',
+    category: 'general',
+    section: 'Cooky',
+    aliases: ['splash', 'intro', 'launch animation'],
+  },
+  {
+    key: 'startupSound',
+    label: 'Startup sound',
+    description: 'Play the chime with the startup animation.',
+    kind: 'toggle',
+    category: 'general',
+    section: 'Cooky',
+    dependsOn: 'startupAnimation',
+    aliases: ['chime', 'launch sound'],
+  },
+  {
+    key: 'caselistSlug',
+    label: 'OpenCaselist caselist',
+    description:
+      'Which caselist Evidence Search looks in, by its short name (for example hspf25 or hspolicy25). Leave empty to use the newest Public Forum caselist.',
+    kind: 'text',
+    category: 'general',
+    section: 'Cooky',
+  },
   {
     key: 'multiDocWorkspace',
     label: 'Three-pane workspace',
@@ -4182,30 +4260,6 @@ export const SETTING_METADATA: SettingMeta[] = [
     aliases: ['clod', 'persona', 'clod activities', 'pronouns', 'clod name'],
   },
   {
-    key: 'pageView',
-    label: 'Page view',
-    description: 'Show the document as a centered page, like a PDF or Word’s print layout. Turn off to let text fill the window.',
-    kind: 'toggle',
-    category: 'appearance',
-    aliases: ['page view', 'pdf view', 'print layout', 'paper', 'centered document'],
-  },
-  {
-    key: 'citeSignature',
-    label: 'Cite signature',
-    description:
-      'Added to the end of every cite the cite creators make, so your cards are signed as you cut them. Leave empty for none.',
-    kind: 'text',
-    category: 'comments-ai',
-  },
-  {
-    key: 'caselistSlug',
-    label: 'OpenCaselist caselist',
-    description:
-      'Which caselist Evidence Search looks in, by its short name (for example hspf25 or hspolicy25). Leave empty to use the newest Public Forum caselist.',
-    kind: 'text',
-    category: 'comments-ai',
-  },
-  {
     key: 'aiCitePrompt',
     label: 'AI cite-creator prompt',
     description:
@@ -5326,6 +5380,12 @@ function sanitize(s: Settings): Settings {
       typeof s.citeSignature === 'string' ? s.citeSignature.slice(0, 80) : DEFAULTS.citeSignature,
     cuttingMode: s.cuttingMode === 'case' ? 'case' : 'block',
     pageView: s.pageView !== false,
+    userName: typeof s.userName === 'string' ? s.userName.slice(0, 60) : DEFAULTS.userName,
+    onboarded: s.onboarded === true,
+    accentColor:
+      typeof s.accentColor === 'string' && /^#[0-9a-f]{6}$/i.test(s.accentColor) ? s.accentColor.toLowerCase() : DEFAULTS.accentColor,
+    startupAnimation: s.startupAnimation !== false,
+    startupSound: s.startupSound !== false,
     caselistSlug:
       typeof s.caselistSlug === 'string' && /^[\w-]{0,40}$/.test(s.caselistSlug.trim())
         ? s.caselistSlug.trim()

@@ -1,7 +1,7 @@
 {
   "name": "@cardmirror/desktop",
   "version": "1.15.0",
-  "description": "Lucas' Brain — built on CardMirror (Electron desktop wrapper)",
+  "description": "Cooky — built on CardMirror (Electron desktop wrapper)",
   "author": "Anthony Trufanov",
   "homepage": "https://github.com/ant981228/cardmirror",
   "private": true,
@@ -24,9 +24,9 @@
     "dist:lite": "node scripts/inject-lite-build.cjs 1 && VITE_LITE=1 npm run dist -- -c.appId=com.cardmirror.lite -c.productName=\"CardMirror Lite\" -c.mac.artifactName=\"CardMirror-Lite-${version}-${arch}.${ext}\" -c.win.artifactName=\"CardMirror-Lite-Setup-${version}.${ext}\" -c.linux.artifactName=\"cardmirror-lite-${version}.${ext}\" -c.executableName=\"CardMirror Lite\" -c.linux.executableName=cardmirror-lite; node scripts/inject-lite-build.cjs 0"
   },
   "build": {
-    "appId": "com.lucasbrain.app",
-    "productName": "Lucas Brain",
-    "executableName": "lucas-brain",
+    "appId": "com.cooky.app",
+    "productName": "Cooky",
+    "executableName": "cooky",
     "electronVersion": "42.2.0",
     "directories": {
       "output": "release",
@@ -69,8 +69,8 @@
     "fileAssociations": [
       {
         "ext": "cmir",
-        "name": "Lucas’ Brain Document",
-        "description": "Lucas’ Brain native document",
+        "name": "Cooky Document",
+        "description": "Cooky native document",
         "role": "Editor"
       }
     ],
@@ -92,14 +92,14 @@
       ],
       "extendInfo": {
         "NSAppSleepDisabled": true,
-        "NSMicrophoneUsageDescription": "Lucas’ Brain uses the microphone for voice control and dictation.",
-        "CFBundleDisplayName": "Lucas’ Brain"
+        "NSMicrophoneUsageDescription": "Cooky uses the microphone for voice control and dictation.",
+        "CFBundleDisplayName": "Cooky"
       },
       "hardenedRuntime": true,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
       "x64ArchFiles": "**/node_modules/@koromix/**",
-      "executableName": "Lucas Brain"
+      "executableName": "Cooky"
     },
     "win": {
       "target": [
@@ -128,7 +128,7 @@
           ]
         }
       ],
-      "artifactName": "lucas-brain-${version}.${ext}"
+      "artifactName": "cooky-${version}.${ext}"
     },
     "pacman": {
       "depends": [

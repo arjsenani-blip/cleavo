@@ -184,6 +184,9 @@ import { runPfCreateCite } from './ai/pf-cite.js';
 import { caseModePlugin } from './case-mode/case-mode-plugin.js';
 import { analyzeArguments, openDock, openEvidenceSearch, setupDock, toggleCaseMode } from './lb-dock.js';
 import '@fontsource-variable/inter';
+import { playStartupSplash } from './splash.js';
+import { greeting, maybeShowWelcome } from './welcome.js';
+import { setupAccent } from './accent.js';
 import { runReformatAllCites } from './ai/reformat-all-cites.js';
 import { runTranslate } from './translate.js';
 import { runRepairText } from './ai/repair-text.js';
@@ -417,7 +420,11 @@ setSaveHealListener(({ error, healed }) => {
 // GitHub buttons in the ribbon's right-hand grid (no-op under Electron).
 wireWebEditionHeaderButtons();
 wireStatusNotices();
-// Lucas' Brain right dock: argument map + evidence search.
+// Accent color drives the theme's custom properties.
+setupAccent();
+// Startup intro, then (first launch) the welcome card.
+void playStartupSplash().then(maybeShowWelcome);
+// Cooky right dock: argument map + evidence search.
 setupDock(() => view);
 for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-lb-command]')) {
   btn.addEventListener('mousedown', (e) => e.preventDefault()); // keep the editor's selection
@@ -5413,12 +5420,12 @@ function makeStarterDoc(): PMNode {
   const blank = () => n['paragraph']!.create(null);
 
   return n['doc']!.createChecked(null, [
-    n['pocket']!.create({ id: newHeadingId() }, schema.text('Welcome to Lucas’ Brain')),
+    n['pocket']!.create({ id: newHeadingId() }, schema.text('Welcome to Cooky')),
     paraText(
-      'Lucas’ Brain is an editor for debate evidence, built on CardMirror, that reads and writes the same Word .docx files as Verbatim. The boxed heading above is a Pocket — Verbatim\'s name for a top-level section. Everything below is live: type in it, edit it, and try the shortcuts as you go.',
+      'Cooky is an editor for debate evidence, built on CardMirror, that reads and writes the same Word .docx files as Verbatim. The boxed heading above is a Pocket — Verbatim\'s name for a top-level section. Everything below is live: type in it, edit it, and try the shortcuts as you go.',
     ),
     blank(),
-    n['hat']!.create({ id: newHeadingId() }, schema.text('What’s new in Lucas’ Brain')),
+    n['hat']!.create({ id: newHeadingId() }, schema.text('What’s new in Cooky')),
     paraIndented('Create PF Cite (Mod-Alt-X): paste an article link and get the full NSDA cite — author, qualifications, date, title, publication, link, date accessed — signed with your signature, with an empty tag line above it for your tag.'),
     paraIndented('Evidence Search (Mod-Alt-Shift-E): search OpenCaselist in plain words and insert cards as they were cut.'),
     paraIndented('Case mode (Mod-Alt-Shift-M): every card glows by its role — cyan uniqueness, gold link, orange internal link, red impact — and missing pieces appear as empty pink boxes with Find evidence.'),
@@ -5604,7 +5611,7 @@ function makeMobileStarterDoc(): PMNode {
   const blank = () => n['paragraph']!.create(null);
 
   return n['doc']!.createChecked(null, [
-    n['pocket']!.create({ id: newHeadingId() }, schema.text('Welcome to Lucas’ Brain')),
+    n['pocket']!.create({ id: newHeadingId() }, schema.text('Welcome to Cooky')),
     paraText(
       'This is the mobile view — a quick way to read, navigate, and lightly edit your debate files. It opens and saves the same Word .docx files as Verbatim and the CardMirror desktop app.',
     ),
@@ -8092,12 +8099,12 @@ function updateWindowTitle(): void {
   if (multiDocActive && multiDocGetAllFilenames) {
     const names = multiDocGetAllFilenames().filter((n): n is string => !!n);
     document.title = names.length > 0
-      ? `${names.join(' · ')} — Lucas’ Brain`
-      : 'Lucas’ Brain';
+      ? `${names.join(' · ')} — Cooky`
+      : 'Cooky';
   } else {
     document.title = focused.filename
-      ? `${focused.filename} — Lucas’ Brain`
-      : 'Lucas’ Brain';
+      ? `${focused.filename} — Cooky`
+      : 'Cooky';
   }
   // In-app filename chip. The chip itself is CSS-hidden in
   // multi-pane mode (each per-pane chip shows the pane's own

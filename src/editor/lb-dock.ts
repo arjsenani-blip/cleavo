@@ -11,6 +11,7 @@
 import { TextSelection } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 import { settings } from './settings.js';
+import { greeting as homeGreeting } from './welcome.js';
 import { showToast } from './toast.js';
 import { aiConfigured } from './ai/llm.js';
 import { researchApi } from './host/electron-host.js';
@@ -47,7 +48,7 @@ function ensureDock(): HTMLElement {
   if (dock) return dock;
   dock = el('aside', 'lb-dock');
   dock.id = 'lb-dock';
-  dock.setAttribute('aria-label', 'Lucas’ Brain sidebar');
+  dock.setAttribute('aria-label', 'Cooky sidebar');
   dock.hidden = true;
 
   const head = el('div', 'lb-dock-head');
@@ -231,7 +232,7 @@ let searchBox: HTMLElement;
 let queryInput: HTMLTextAreaElement;
 let progressLine: HTMLElement;
 let results: HTMLElement;
-let caselistChip: HTMLElement;
+let caselistChip: HTMLInputElement;
 let busy = false;
 
 function setQuery(q: string): void {
@@ -244,7 +245,7 @@ function buildEvidencePane(): void {
   signInBox = el('form', 'lb-signin');
   signInBox.append(
     el('h3', 'lb-h', 'Sign in to OpenCaselist'),
-    el('p', 'lb-muted', 'Use your Tabroom email and password. They go straight to OpenCaselist — Lucas’ Brain keeps only the session, encrypted on this computer.'),
+    el('p', 'lb-muted', 'Use your Tabroom email and password. They go straight to OpenCaselist — Cooky keeps only the session, encrypted on this computer.'),
   );
   const email = el('input', 'lb-input');
   email.type = 'email';
@@ -279,8 +280,17 @@ function buildEvidencePane(): void {
 
   searchBox = el('div', 'lb-search');
   const top = el('div', 'lb-search-top');
-  caselistChip = el('span', 'lb-caselist-chip', '…');
-  caselistChip.title = 'Caselist being searched — change it in Settings → OpenCaselist caselist';
+  // Editable: the caselist being searched. Empty → the newest PF caselist.
+  caselistChip = el('input', 'lb-caselist-chip');
+  caselistChip.type = 'text';
+  caselistChip.spellcheck = false;
+  caselistChip.placeholder = 'caselist';
+  caselistChip.title = 'Caselist to search (for example hspf26). Clear it to use the newest Public Forum caselist.';
+  caselistChip.addEventListener('change', () => {
+    const v = caselistChip.value.trim().toLowerCase();
+    if (/^[\w-]{0,40}$/.test(v)) settings.set('caselistSlug', v);
+    void refreshSignIn();
+  });
   const out = el('button', 'lb-link-btn', 'Sign out');
   out.type = 'button';
   out.addEventListener('click', () => {
@@ -325,10 +335,11 @@ async function refreshSignIn(): Promise<void> {
   if (ok) {
     activeCaselist()
       .then((slug) => {
-        caselistChip.textContent = slug;
+        caselistChip.value = slug;
       })
-      .catch(() => {
-        caselistChip.textContent = 'caselist';
+      .catch((e: unknown) => {
+        caselistChip.value = settings.get('caselistSlug');
+        progressLine.textContent = e instanceof Error ? e.message : String(e);
       });
     queryInput.focus();
   }
@@ -417,6 +428,9 @@ export function setupDock(viewGetter: () => EditorView | null): void {
   getView = viewGetter;
   const syncBody = () => {
     document.body.classList.toggle('lb-page-view', settings.get('pageView'));
+    // Home greets by name ("Good evening, Arjun").
+    const homeTitle = document.querySelector('.pmd-home-title');
+    if (homeTitle) homeTitle.textContent = homeGreeting();
     const caseOn = settings.get('cuttingMode') === 'case';
     document.body.classList.toggle('lb-case-mode', caseOn);
     const modeBtn = document.getElementById('lb-mode-btn');
@@ -427,6 +441,20 @@ export function setupDock(viewGetter: () => EditorView | null): void {
   };
   syncBody();
   settings.subscribe(syncBody);
+  // Light / Dark toggle: flips the effective theme (a "system" setting
+  // becomes an explicit choice) and labels itself with the other mode.
+  const themeBtn = document.getElementById('lb-theme-btn');
+  const isDark = () => document.documentElement.dataset['theme'] === 'dark';
+  const syncThemeBtn = () => {
+    if (themeBtn) themeBtn.textContent = isDark() ? '☀︎ Light' : '☾ Dark';
+  };
+  themeBtn?.addEventListener('mousedown', (e) => e.preventDefault());
+  themeBtn?.addEventListener('click', () => {
+    settings.set('theme', isDark() ? 'light' : 'dark');
+    requestAnimationFrame(syncThemeBtn);
+  });
+  new MutationObserver(syncThemeBtn).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  syncThemeBtn();
   setFindEvidenceHandler((gap, title) => searchForGap(gap, title));
   onCaseAnalysis((a, from) => {
     // Several panes may be open; the map follows the focused one.

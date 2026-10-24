@@ -1475,9 +1475,9 @@ function sessionDocTitle(ownerUid: string | null | undefined): string {
   const byUid = ownerUid ? docTitleResolver?.(ownerUid) : null;
   if (byUid != null) return byUid.trim();
   const t = document.title;
-  const m = /^(.*) — (?:CardMirror|Lucas’ Brain)$/.exec(t);
+  const m = /^(.*) — (?:CardMirror|Cooky)$/.exec(t);
   if (m && m[1]) return m[1];
-  return t === 'CardMirror' || t === 'Lucas’ Brain' ? '' : t;
+  return t === 'CardMirror' || t === 'Cooky' ? '' : t;
 }
 
 /** Shared invite-send tail: sealed pairing message, version-floored so

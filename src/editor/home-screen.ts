@@ -18,6 +18,7 @@
  * load-in-place logic.
  */
 
+import { greeting } from './welcome.js';
 import {
   listRecents,
   subscribeRecents,
@@ -71,7 +72,7 @@ export interface HomeScreenCallbacks {
    *  layout); omitted → no tile. Until 2026-09-21 the home screen
    *  reached Settings only through the command bar. */
   openSettings?: () => void;
-  /** Lucas' Brain launchpad: start a case or a block (new doc in that
+  /** Cooky launchpad: start a case or a block (new doc in that
    *  cutting mode), cite from a link, or search evidence. Omitted → no
    *  launchpad row. */
   startFlow?: (kind: 'case' | 'block' | 'cite' | 'evidence') => void;
@@ -166,7 +167,7 @@ class HomeScreen {
     header.appendChild(this.backBtn);
     const title = document.createElement('h1');
     title.className = 'pmd-home-title';
-    title.textContent = 'Lucas’ Brain';
+    title.textContent = greeting();
     header.appendChild(title);
     const tagline = document.createElement('p');
     tagline.className = 'pmd-home-tagline';
@@ -410,6 +411,9 @@ class HomeScreen {
    *  On launch / close-doc there's nothing behind home, so it's
    *  left false and home is the only way forward. */
   show(opts: { canReturnToDoc?: boolean } = {}): void {
+    // Refresh the time-of-day greeting each time home opens.
+    const t = this.root?.querySelector('.pmd-home-title');
+    if (t) t.textContent = greeting();
     // No-op when never mounted (multi-pane mode doesn't mount the
     // home screen). Lets the goHome ribbon command be a safe
     // no-op there rather than throwing on an undefined root.

@@ -324,6 +324,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('caselist:get', route, query ?? {}),
   caselistDownload: (filePath: string) => ipcRenderer.invoke('caselist:download', filePath),
 
+  /** True only for the first window of this launch (startup splash). */
+  claimLaunchSplash: () => ipcRenderer.invoke('host:claim-launch-splash') as Promise<boolean>,
+
   /** One-click write into the Downloads folder (never overwrites). */
   saveToDownloads: (filename: string, bytes: Uint8Array) =>
     ipcRenderer.invoke('host:save-to-downloads', filename, bytes) as Promise<{

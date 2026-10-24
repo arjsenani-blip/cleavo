@@ -559,7 +559,7 @@ export async function runPfCreateCite(view: EditorView): Promise<void> {
       message: 'Paste the article link',
       placeholder: 'https://…',
       okLabel: 'Create cite',
-      detail: 'Lucas’ Brain reads the page and writes the full cite — author, qualifications, date, title, publication, link and date accessed.',
+      detail: 'Cooky reads the page and writes the full cite — author, qualifications, date, title, publication, link and date accessed.',
     });
     if (!typed) return;
     url = findUrl(typed) ?? (findUrl(`https://${typed.trim()}`) as string | null);

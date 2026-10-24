@@ -32,7 +32,7 @@ import {
   session,
   nativeImage,
 } from 'electron';
-import { existsSync } from 'node:fs';
+import { cpSync, existsSync } from 'node:fs';
 import { autoUpdater } from 'electron-updater';
 import { bundlePathFromExe, launchSwapHelper, macBundleSelfUpdatable } from './mac-swap-update.js';
 import { registerVoiceIpc } from './voice/ipc';
@@ -163,8 +163,8 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 // pull the dump from there manually and attach it to a bug report.
 // No telemetry, no remote endpoint, no third-party SDK.
 crashReporter.start({
-  productName: 'Lucas’ Brain',
-  companyName: 'Lucas’ Brain',
+  productName: 'Cooky',
+  companyName: 'Cooky',
   submitURL: '',
   uploadToServer: false,
 });
@@ -185,6 +185,17 @@ crashReporter.start({
 // local pref read here; the toggle prompts a restart since Chromium reads switches
 // at startup). Fail-safe: any read failure leaves the switch ON (tree disabled).
 // MUST run before `app.whenReady()`.
+// Cooky was first built as "Lucas Brain": carry that install's settings,
+// journals and sessions over the first time Cooky starts, so the rename
+// loses nothing. One-shot: skipped once Cooky has its own folder.
+try {
+  const ours = app.getPath('userData');
+  const legacy = path.join(app.getPath('appData'), 'Lucas Brain');
+  if (!existsSync(ours) && existsSync(legacy)) cpSync(legacy, ours, { recursive: true });
+} catch (err) {
+  console.warn('Settings carry-over from Lucas Brain failed:', err);
+}
+
 let rendererAccessibilityEnabled = false;
 try {
   rendererAccessibilityEnabled = readAccessibilityTreeEnabled(app.getPath('userData'));
@@ -437,9 +448,11 @@ function createWindow(initialDoc?: InitialDocPayload): BrowserWindow {
     // degradation from there.
     minWidth: 0,
     minHeight: 0,
-    title: 'Lucas’ Brain',
+    title: 'Cooky',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
+      // The startup chime plays before any click.
+      autoplayPolicy: 'no-user-gesture-required',
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -504,9 +517,9 @@ function createWindow(initialDoc?: InitialDocPayload): BrowserWindow {
     recentReloads.push(now);
     if (recentReloads.length > 3) {
       dialog.showErrorBox(
-        'Lucas’ Brain kept crashing',
+        'Cooky kept crashing',
         'The editor window crashed several times in a row. Your unsaved work is preserved ' +
-          'in the recovery journal — please quit and reopen Lucas’ Brain.',
+          'in the recovery journal — please quit and reopen Cooky.',
       );
       return;
     }
@@ -664,9 +677,18 @@ ipcMain.handle('host:toggle-devtools', (event) => {
  *  In dev (non-packaged) the menu shows a friendly note instead
  *  of running; the renderer path returns `'dev'` so the UI can
  *  do the same. */
-/** Lucas' Brain is a personal build of CardMirror: its updates would come
+/** Cooky is a personal build of CardMirror: its updates would come
  *  from CardMirror's own releases and replace it, so updating is off. */
 const UPDATES_DISABLED = true;
+
+/** True for the first window that asks in this app run — the startup
+ *  splash plays once per launch, not for every window opened later. */
+let launchSplashClaimed = false;
+ipcMain.handle('host:claim-launch-splash', () => {
+  if (launchSplashClaimed) return false;
+  launchSplashClaimed = true;
+  return true;
+});
 
 ipcMain.handle('host:check-for-updates', async () => {
   if (!app.isPackaged || UPDATES_DISABLED) return { status: 'dev' };
@@ -3226,8 +3248,8 @@ function runUpdateCheck(opts: UpdateCheckOpts): void {
       void dialog.showMessageBox(win, {
         type: 'info',
         title: 'Updates',
-        message: 'Lucas’ Brain updates are installed by rebuilding it.',
-        detail: `Lucas’ Brain ${app.getVersion()} — built on CardMirror. Copyright (c) 2026 Anthony Trufanov. PolyForm Noncommercial License 1.0.0.`,
+        message: 'Cooky updates are installed by rebuilding it.',
+        detail: `Cooky ${app.getVersion()} — built on CardMirror. Copyright (c) 2026 Anthony Trufanov. PolyForm Noncommercial License 1.0.0.`,
       });
     }
     return;
@@ -3442,7 +3464,7 @@ function openTimerWindow(popoutOpts?: TimerPopoutOpts): void {
     skipTaskbar: true,
     alwaysOnTop: true,
     show: false,
-    title: 'Timer — Lucas’ Brain',
+    title: 'Timer — Cooky',
     webPreferences: {
       // Minimal dedicated preload: exposes ONLY a resize call (see
       // timer-popout-preload.ts). Everything else the pop-out does
