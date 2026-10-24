@@ -182,7 +182,8 @@ import { CommentsColumn, addCommentToSelection, FC_PREFIX, AI_PREFIX, NOTE_PREFI
 import { runAiCreateCite } from './ai/cite-creator.js';
 import { runPfCreateCite } from './ai/pf-cite.js';
 import { caseModePlugin } from './case-mode/case-mode-plugin.js';
-import { analyzeArguments, openEvidenceSearch, setupDock, toggleCaseMode } from './lb-dock.js';
+import { analyzeArguments, openDock, openEvidenceSearch, setupDock, toggleCaseMode } from './lb-dock.js';
+import '@fontsource-variable/inter';
 import { runReformatAllCites } from './ai/reformat-all-cites.js';
 import { runTranslate } from './translate.js';
 import { runRepairText } from './ai/repair-text.js';
@@ -7301,6 +7302,22 @@ const homeCallbacks: HomeScreenCallbacks = {
   },
   openSettings: () => {
     void loadSettingsUi().then((m) => m.openSettings());
+  },
+  startFlow: (kind) => {
+    if (kind === 'case' || kind === 'block') settings.set('cuttingMode', kind);
+    homeCallbacks.newDoc();
+    // The new doc mounts asynchronously; act once a view is up.
+    let tries = 0;
+    const go = () => {
+      if (!view && tries++ < 40) {
+        setTimeout(go, 50);
+        return;
+      }
+      if (kind === 'case') openDock('map');
+      else if (kind === 'cite') runRibbon('pfCreateCite');
+      else if (kind === 'evidence') openEvidenceSearch();
+    };
+    setTimeout(go, 50);
   },
   mountUpdateChip: (el) => {
     const chipHost = getElectronHost();

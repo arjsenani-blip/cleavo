@@ -71,6 +71,10 @@ export interface HomeScreenCallbacks {
    *  layout); omitted → no tile. Until 2026-09-21 the home screen
    *  reached Settings only through the command bar. */
   openSettings?: () => void;
+  /** Lucas' Brain launchpad: start a case or a block (new doc in that
+   *  cutting mode), cite from a link, or search evidence. Omitted → no
+   *  launchpad row. */
+  startFlow?: (kind: 'case' | 'block' | 'cite' | 'evidence') => void;
   /** Wire the home screen's update button (same states and click
    *  action as the status-bar update chip, which home covers). Called
    *  once at mount with the hidden button; omitted → it stays hidden. */
@@ -206,6 +210,7 @@ class HomeScreen {
     // Settings — the last tile (9 in the normal layout).
     if (callbacks.openSettings) runners.push(() => this.callbacks?.openSettings?.());
     this.actionRunners = runners;
+    if (callbacks.startFlow) inner.appendChild(this.launchpad(callbacks.startFlow));
     const actions = document.createElement('div');
     actions.className = 'pmd-home-actions';
     actions.appendChild(
@@ -468,6 +473,42 @@ class HomeScreen {
   }
 
   // ---- Rendering ----------------------------------------------------
+
+  /** The launchpad: the four ways a debater starts work, as large tiles. */
+  private launchpad(start: NonNullable<HomeScreenCallbacks['startFlow']>): HTMLElement {
+    const grid = document.createElement('div');
+    grid.className = 'lb-launchpad';
+    const tiles: [Parameters<typeof start>[0], string, string, string][] = [
+      ['case', 'New case', 'Contentions with an argument map — every card outlined by its role.', '⌘⌥⇧M'],
+      ['block', 'New block', 'A clean page for blocks, frontlines and answers.', '⌘N'],
+      ['cite', 'Cite from link', 'Paste an article link; get the full NSDA cite, signed.', '⌘⌥X'],
+      ['evidence', 'Find evidence', 'Search OpenCaselist in plain words; insert cards as cut.', '⌘⌥⇧E'],
+    ];
+    for (const [kind, title, sub, keys] of tiles) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `lb-tile lb-tile-${kind}`;
+      const glyph = document.createElement('span');
+      glyph.className = 'lb-tile-glyph';
+      glyph.setAttribute('aria-hidden', 'true');
+      const t = document.createElement('span');
+      t.className = 'lb-tile-title';
+      t.textContent = title;
+      const d = document.createElement('span');
+      d.className = 'lb-tile-sub';
+      d.textContent = sub;
+      const k = document.createElement('kbd');
+      k.className = 'lb-tile-keys';
+      k.textContent = keys;
+      btn.append(glyph, t, d, k);
+      btn.addEventListener('click', () => {
+        this.hide();
+        start(kind);
+      });
+      grid.appendChild(btn);
+    }
+    return grid;
+  }
 
   private actionCard(
     title: string,
