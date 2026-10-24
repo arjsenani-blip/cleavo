@@ -107,12 +107,26 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Glass lives on a ::before layer, never on the bar itself: a
+   backdrop-filter makes its element the containing block for every
+   position:fixed descendant, which would pin the bars' popovers (and the
+   nav pane inside #nav-panel) to the bar's own box. */
 #ribbon,
 #status-bar {
+  background: transparent;
+  border-color: var(--lb-hairline);
+  isolation: isolate;
+}
+#ribbon::before,
+#status-bar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
   background: var(--lb-glass);
   backdrop-filter: saturate(160%) blur(18px);
   -webkit-backdrop-filter: saturate(160%) blur(18px);
-  border-color: var(--lb-hairline);
+  pointer-events: none;
 }
 #ribbon {
   box-shadow: 0 1px 0 var(--lb-hairline), 0 6px 18px -14px rgba(28, 26, 23, 0.25);
@@ -131,7 +145,8 @@ body {
   pointer-events: none;
 }
 
-#nav-panel {
+/* The nav pane is itself position:fixed, so it can carry its own blur. */
+.pmd-nav-panel {
   background: var(--lb-glass-strong);
   backdrop-filter: saturate(140%) blur(14px);
   -webkit-backdrop-filter: saturate(140%) blur(14px);
@@ -172,6 +187,31 @@ body {
 }
 
 /* ── Page view: the doc as a centered sheet ───────────────────────── */
+
+:root {
+  /* Page view's magnification on top of the user's own zoom. */
+  --lb-page-scale: 1.2;
+  /* Chrome on each side of the document area (nav pane / dock). */
+  --lb-left-chrome: var(--nav-width);
+  --lb-right-chrome: 0px;
+}
+body.pmd-nav-hidden,
+html.pmd-home-active body { --lb-left-chrome: 0px; }
+body.lb-dock-open { --lb-right-chrome: var(--lb-dock-width); }
+
+body.lb-page-view:not(.pmd-multi-doc) #editor {
+  --lb-z: calc(var(--editor-zoom, 1) * var(--lb-page-scale));
+  zoom: var(--lb-z);
+}
+/* Center the page on the WINDOW, not on the space beside the side panes:
+   pad the document area on the side with less chrome by the difference.
+   Wide windows only — narrow ones need every pixel for the page. */
+@media (min-width: 1100px) {
+  body.lb-page-view:not(.pmd-multi-doc) #editor {
+    padding-left: calc(max(0px, var(--lb-right-chrome) - var(--lb-left-chrome)) / var(--lb-z));
+    padding-right: calc(max(0px, var(--lb-left-chrome) - var(--lb-right-chrome)) / var(--lb-z));
+  }
+}
 
 /* The desk around the page. Out-specifies the dark theme's "paint the
    whole document area white" rule — in page view only the sheet is
@@ -601,7 +641,7 @@ body.lb-dock-open.pmd-multi-doc #app {
 .lb-ribbon-group {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: repeat(2, auto);
+  grid-template-columns: repeat(3, auto);
   gap: 3px 4px;
   margin: 0 6px;
   padding: 0 6px;
