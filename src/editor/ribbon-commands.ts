@@ -3240,7 +3240,21 @@ const SHRINK_EXEMPT_MARK_NAMES = new Set([
   'underline_mark',
   'underline_direct',
   'emphasis_mark',
+  'bold',
+  'shading',
 ]);
+
+/** True when a text node keeps its size under Shrink: underlined,
+ *  emphasized, bold, background-colored, or highlighted (any color but
+ *  the explicit "none"). Like Verbatim, select a whole card and Shrink
+ *  touches only the plain, unread text. */
+function isShrinkExempt(node: PMNode): boolean {
+  return node.marks.some(
+    (m) =>
+      SHRINK_EXEMPT_MARK_NAMES.has(m.type.name) ||
+      (m.type.name === 'highlight' && m.attrs['color'] !== 'none'),
+  );
+}
 
 export function shrinkText(
   effectivePt: (node: PMNode | null, parent: PMNode) => number,
@@ -3368,7 +3382,7 @@ function blockHasExemptMarks(node: PMNode): boolean {
   let has = false;
   node.descendants((child) => {
     if (has) return false;
-    if (child.isText && child.marks.some((m) => SHRINK_EXEMPT_MARK_NAMES.has(m.type.name))) {
+    if (child.isText && isShrinkExempt(child)) {
       has = true;
     }
     return !has;
@@ -3403,7 +3417,7 @@ export function smartShrinkText(
       const pt = blockHasExemptMarks(block.node) ? SMART_SHRINK_MARKED_PT : SMART_SHRINK_BARE_PT;
       state.doc.nodesBetween(block.from, block.to, (node, pos, parent) => {
         if (!node.isText || !parent) return true;
-        if (node.marks.some((m) => SHRINK_EXEMPT_MARK_NAMES.has(m.type.name))) return true;
+        if (isShrinkExempt(node)) return true;
         const start = Math.max(block.from, pos);
         const end = Math.min(block.to, pos + node.nodeSize);
         if (start >= end) return true;
@@ -3487,9 +3501,7 @@ function sizeCycleCommand(
     for (const range of ranges) {
       state.doc.nodesBetween(range.from, range.to, (node, pos, parent) => {
         if (!node.isText || !parent) return true;
-        if (node.marks.some((m) => SHRINK_EXEMPT_MARK_NAMES.has(m.type.name))) {
-          return true;
-        }
+        if (isShrinkExempt(node)) return true;
         const start = Math.max(range.from, pos);
         const end = Math.min(range.to, pos + node.nodeSize);
         if (start >= end) return true;

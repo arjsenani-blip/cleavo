@@ -549,9 +549,11 @@ every conversion is reversible with **Backspace** right after it fires.
 
 ### Shrink (Mod-8)
 
-**Shrink** cycles the non-underlined text in the current card or
-analytic through progressively smaller sizes and back to normal, so a
-card reads compactly at the podium. By default it leaves **omission
+**Shrink** cycles the plain text in the current card or analytic
+through progressively smaller sizes and back to normal, so a card reads
+compactly at the podium. Underlined, emphasized, bold, highlighted and
+background-colored text keeps its size, so you can select a whole card
+and Shrink touches only the unread text, the way Verbatim's does. By default it leaves **omission
 notes** — bracketed text like `[Table Omitted]` or `<Figure Omitted>` —
 at full size; you can turn that protection off in Settings.
 
