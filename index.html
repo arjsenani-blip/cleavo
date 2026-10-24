@@ -24,6 +24,15 @@
           if (window.innerWidth < 760) return;
           document.documentElement.classList.add('lb-booting');
           window.__lbIntroT0 = performance.now();
+          // Backstop: if the app script fails before taking over, lift the
+          // intro anyway so it can never cover the editor.
+          setTimeout(function () {
+            var el = document.getElementById('lb-intro');
+            if (el && document.documentElement.classList.contains('lb-booting')) {
+              el.remove();
+              document.documentElement.classList.remove('lb-booting');
+            }
+          }, 6000);
         } catch (e) {}
       })();
     </script>

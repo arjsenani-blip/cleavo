@@ -103,10 +103,13 @@ function playIntroSound(elapsed: number): void {
   delay.connect(fb).connect(delay);
   delay.connect(wet).connect(ctx.destination);
 
+  // `t` is when the intro started, in the audio clock. A fresh context's
+  // clock starts at 0, so `t` is often negative: only events that are
+  // still ahead (`due`) get scheduled — Web Audio throws on past times.
   const t = ctx.currentTime + 0.03 - elapsed;
-  const due = (at: number) => t + at >= ctx.currentTime;
+  const due = (at: number) => t + at >= ctx.currentTime + 0.01;
   // 1. The orb grows: a rising whoosh (only if we're early enough).
-  if (elapsed < 0.3) whoosh(ctx, master, t + 0.12, 0.95, true, 0.22);
+  if (due(0.12) && elapsed < 0.3) whoosh(ctx, master, t + 0.12, 0.95, true, 0.22);
   // 2. The name lands: a warm A-major add9 pad…
   const pad: [number, number][] = [
     [220.0, -6], [329.63, 5], [440.0, -4], [493.88, 6], [554.37, 0],
@@ -145,8 +148,6 @@ export async function playStartupSplash(): Promise<void> {
   const elapsedMs = () => performance.now() - t0;
   const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
-  if (settings.get('startupSound') && !reduced) playIntroSound(elapsedMs() / 1000);
-
   let done = false;
   await new Promise<void>((resolve) => {
     const finish = () => {
@@ -163,5 +164,14 @@ export async function playStartupSplash(): Promise<void> {
     overlay.addEventListener('pointerdown', finish);
     window.addEventListener('keydown', finish, true);
     setTimeout(finish, Math.max(0, (reduced ? REDUCED_MS : REVEAL_AT_MS) - elapsedMs()));
+    // Sound last, and never able to stop the reveal: the handlers above
+    // are already in place whatever it does.
+    if (settings.get('startupSound') && !reduced) {
+      try {
+        playIntroSound(elapsedMs() / 1000);
+      } catch (e) {
+        console.warn('[cardmirror] intro sound skipped:', e);
+      }
+    }
   });
 }
