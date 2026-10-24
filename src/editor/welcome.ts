@@ -47,7 +47,7 @@ export function maybeShowWelcome(): void {
 
   // Live preview of a cite ending in the tag.
   const preview = el('div', 'lb-welcome-preview');
-  const sample = el('span', 'lb-welcome-sample', 'Smith 24, Senior Fellow at Brookings, “Why Sanctions Fail,” Foreign Affairs, 3/14/2024 ');
+  const sample = el('span', 'lb-welcome-sample', 'Smith 24 [Jane Smith, Senior Fellow at Brookings, "Why Sanctions Fail", 03/14/2024, Foreign Affairs, …] ');
   const sig = el('strong', 'lb-welcome-sig');
   preview.append(sample, sig);
   const syncPreview = () => {

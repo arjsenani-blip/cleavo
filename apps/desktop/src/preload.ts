@@ -316,6 +316,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /** Research network calls (web-research.ts): page fetch for the PF
    *  cite creator and the read-only OpenCaselist client. */
   researchFetchPage: (url: string) => ipcRenderer.invoke('research:fetch-page', url),
+  researchRenderPage: (url: string, opts?: { visible?: boolean }) =>
+    ipcRenderer.invoke('research:render-page', url, opts ?? {}),
   caselistStatus: () => ipcRenderer.invoke('caselist:status') as Promise<{ signedIn: boolean }>,
   caselistLogin: (username: string, password: string) =>
     ipcRenderer.invoke('caselist:login', username, password),

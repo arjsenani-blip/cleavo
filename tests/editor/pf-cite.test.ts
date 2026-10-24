@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   citeIsComplete,
+  citeLead,
   extractPageMetadata,
   findQualifications,
   findUrl,
@@ -44,7 +45,7 @@ describe('pf cite', () => {
     expect(citeIsComplete(meta, quals)).toBe(true);
     const r = formatPfCite(meta, NOW, quals);
     expect(r.cite).toBe(
-      'Jane Smith 24, Senior Fellow at the Brookings Institution and a former State Department official, "Why Sanctions Fail," Foreign Affairs, 3/14/2024, https://www.foreignaffairs.com/why-sanctions-fail, accessed 10/23/2026',
+      'Smith 24 [Jane Smith, Senior Fellow at the Brookings Institution and a former State Department official, "Why Sanctions Fail", 03/14/2024, Foreign Affairs, https://www.foreignaffairs.com/why-sanctions-fail, Accessed 10/23/2026]',
     );
     expect(r.tokens).toEqual(['Smith 24']);
   });
@@ -54,20 +55,27 @@ describe('pf cite', () => {
     const quals = qualificationsFor(meta);
     expect(citeIsComplete(meta, quals)).toBe(false);
     expect(formatPfCite(meta, NOW, quals).cite).toContain('[qualifications]');
+    expect(formatPfCite(meta, NOW, quals).cite.endsWith('Accessed 10/23/2026]')).toBe(true);
   });
 
-  it('two authors and the "Lastname & " token convention', () => {
+  it('two authors: "Lastname and Lastname YY" lead, both names in the bracket', () => {
     const meta = extractPageMetadata(
       ARTICLE.replace('content="Jane Smith"', 'content="Laura Weiss and John Bresnahan"'),
       'https://punchbowl.news/x',
     );
     expect(meta.authors.slice(0, 2)).toEqual(['Laura Weiss', 'John Bresnahan']);
+    const two = { ...meta, authors: ['Laura Weiss', 'John Bresnahan'] };
+    const r = formatPfCite(two, NOW, ['Congressional reporter at Punchbowl News', 'Co-founder of Punchbowl News']);
+    expect(r.tokens).toEqual(['Weiss and Bresnahan 24']);
+    expect(r.cite.startsWith('Weiss and Bresnahan 24 [Laura Weiss and John Bresnahan, Laura is congressional reporter')).toBe(true);
+    expect(citeLead(['A One', 'B Two', 'C Three'], '', '21')).toBe('One et al. 21');
+    expect(citeLead([], 'Brookings Institution', '24')).toBe('Brookings Institution 24');
   });
 
-  it('short dates follow the cite convention', () => {
-    expect(shortDate(new Date(2026, 9, 1), NOW)).toBe('10/1');
-    expect(shortDate(new Date(2009, 1, 1), NOW)).toBe('9');
-    expect(shortDate(new Date(1931, 1, 1), NOW)).toBe('1931');
+  it('short dates are two-digit years', () => {
+    expect(shortDate(new Date(2026, 9, 1), NOW)).toBe('26');
+    expect(shortDate(new Date(2021, 5, 9), NOW)).toBe('21');
+    expect(shortDate(new Date(2009, 1, 1), NOW)).toBe('09');
   });
 
   it('helpers', () => {
@@ -80,8 +88,8 @@ describe('pf cite', () => {
   });
 
   it('signature is appended once', () => {
-    const r = withCiteSignature({ cite: 'Smith 24, x', tokens: ['Smith 24'] }, '// arjun 🦡');
-    expect(r.cite).toBe('Smith 24, x // arjun 🦡');
+    const r = withCiteSignature({ cite: 'Smith 24 [x]', tokens: ['Smith 24'] }, '// arjun 🦡');
+    expect(r.cite).toBe('Smith 24 [x] // arjun 🦡');
     expect(withCiteSignature(r, '// arjun 🦡').cite).toBe(r.cite);
   });
 });

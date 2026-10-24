@@ -10,7 +10,7 @@
  * token is kept encrypted with the OS keychain (safeStorage) in
  * userData so the sign-in survives relaunches.
  */
-import { app, ipcMain, safeStorage } from 'electron';
+import { app, BrowserWindow, ipcMain, safeStorage, session } from 'electron';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 
@@ -72,6 +72,167 @@ export async function fetchPage(rawUrl: unknown): Promise<Result<{ url: string; 
     return { ok: true, url: res.url || url.href, html: new TextDecoder().decode(bytes) };
   } catch (err) {
     return { ok: false, error: errorText(err) };
+  }
+}
+
+// ─── Background reader (PF cite qualifications) ──────────────────────
+
+/** Session for the hidden reader: its own persistent cookie jar, so a
+ *  news site the user signs into there stays signed in, and nothing is
+ *  shared with the editor windows. Locked down once, on first use. */
+const READER_PARTITION = 'persist:cooky-reader';
+let readerSessionReady = false;
+
+function readerSession(): Electron.Session {
+  const ses = session.fromPartition(READER_PARTITION);
+  if (!readerSessionReady) {
+    readerSessionReady = true;
+    // No camera, mic, location, notifications, clipboard… for any site.
+    ses.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
+    ses.setPermissionCheckHandler(() => false);
+    // Never download anything.
+    ses.on('will-download', (e) => e.preventDefault());
+    // A normal desktop Chrome UA: some sites serve bylines only to browsers.
+    ses.setUserAgent(ses.getUserAgent().replace(/\s?(Electron|Cooky|cooky)\/[\d.]+/g, ''));
+  }
+  return ses;
+}
+
+/** Reader windows, so the rest of the app can leave them out of window
+ *  lists, broadcasts and the quit flow. */
+const readerWindows = new WeakSet<BrowserWindow>();
+export function isReaderWindow(w: BrowserWindow): boolean {
+  return readerWindows.has(w);
+}
+
+const RENDER_TIMEOUT_MS = 25_000;
+const SETTLE_MS = 1_200;
+/** How long a visible reader waits for the user to get past a check. */
+const VISIBLE_WAIT_MS = 120_000;
+
+export type RenderResult = Result<{ url: string; html: string }> & { blocked?: boolean };
+
+/** Bot checks and challenges ("Just a moment…", captchas). Cooky never
+ *  tries to get past one by itself: a hidden read reports it, and a
+ *  visible read waits for the user to clear it. */
+function looksLikeCheck(title: string, html: string): boolean {
+  if (/^(just a moment|attention required|are you a robot|access denied|verify you are human|security check)/i.test(title.trim())) {
+    return true;
+  }
+  // Real articles also load bot-monitoring scripts, so a marker only
+  // counts on a page small enough to be a check screen (they run ~30 KB;
+  // articles run hundreds).
+  return html.length < 80_000 && /cf-chl-|challenge-platform|g-recaptcha|h-captcha|captcha-delivery|px-captcha/i.test(html);
+}
+
+/** Run a snippet in the page, giving up after `ms` — a busy or frozen
+ *  page would otherwise leave the call (and the cite) waiting forever. */
+function runInPage<T>(win: BrowserWindow, code: string, fallback: T, ms = 5000): Promise<T> {
+  if (win.isDestroyed()) return Promise.resolve(fallback);
+  return Promise.race([
+    win.webContents.executeJavaScript(code, true).then((v) => v as T, () => fallback),
+    new Promise<T>((res) => setTimeout(() => res(fallback), ms)),
+  ]);
+}
+
+async function readRendered(win: BrowserWindow): Promise<{ title: string; html: string }> {
+  const html = await runInPage(win, 'document.documentElement ? document.documentElement.outerHTML : ""', '');
+  return { title: win.isDestroyed() ? '' : win.webContents.getTitle(), html };
+}
+
+/** Load a page in a sandboxed browser window, let its scripts run, scroll
+ *  to the end (author bios often load lazily at the bottom), and return
+ *  the rendered HTML — for pages that block plain fetches or build their
+ *  byline with JavaScript.
+ *
+ *  Hidden by default. When the page puts up a bot check, a hidden read
+ *  stops and reports `blocked`; with `visible`, the window is shown so the
+ *  user can get past the check themselves, and it's read and closed once
+ *  the real page appears (or the user closes it). */
+export function renderPage(rawUrl: unknown, opts: { visible?: boolean } = {}): Promise<RenderResult> {
+  // Hard ceiling on the whole read, whatever the page does.
+  const ceiling = opts.visible === true ? VISIBLE_WAIT_MS + 40_000 : 45_000;
+  return Promise.race([
+    renderPageInner(rawUrl, opts),
+    new Promise<RenderResult>((res) =>
+      setTimeout(() => res({ ok: false, error: 'Reading the page took too long.' }), ceiling),
+    ),
+  ]);
+}
+
+async function renderPageInner(rawUrl: unknown, opts: { visible?: boolean }): Promise<RenderResult> {
+  let url: URL;
+  try {
+    url = new URL(String(rawUrl));
+  } catch {
+    return { ok: false, error: 'That isn’t a valid link.' };
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+    return { ok: false, error: 'Only http and https links can be read.' };
+  }
+  const visible = opts.visible === true;
+  const win = new BrowserWindow({
+    show: false,
+    width: 1100,
+    height: 820,
+    title: 'Cooky reader',
+    webPreferences: {
+      session: readerSession(),
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      javascript: true,
+      images: visible,
+      spellcheck: false,
+      backgroundThrottling: false,
+    },
+  });
+  readerWindows.add(win);
+  win.webContents.setAudioMuted(true);
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  let closedByUser = false;
+  win.on('closed', () => {
+    closedByUser = true;
+  });
+  const settle = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
+  try {
+    const loaded = win.loadURL(url.href).then(
+      () => true,
+      () => true, // a sub-resource abort still leaves a usable page
+    );
+    if (visible) win.show();
+    const timedOut = settle(RENDER_TIMEOUT_MS).then(() => false);
+    if (!(await Promise.race([loaded, timedOut]))) {
+      return { ok: false, error: 'The page took too long to load.' };
+    }
+    await settle(SETTLE_MS);
+    let page = await readRendered(win);
+
+    if (looksLikeCheck(page.title, page.html)) {
+      if (!visible) return { ok: false, blocked: true, error: 'This site checks for robots before showing the page.' };
+      // The user is looking at the check; wait for the real page.
+      win.setTitle('Cooky reader — get past the check and the page will be read automatically');
+      const deadline = Date.now() + VISIBLE_WAIT_MS;
+      while (Date.now() < deadline) {
+        await settle(1000);
+        if (closedByUser || win.isDestroyed()) return { ok: false, error: 'The reader window was closed.' };
+        page = await readRendered(win).catch(() => page);
+        if (!looksLikeCheck(page.title, page.html)) break;
+      }
+      if (looksLikeCheck(page.title, page.html)) return { ok: false, blocked: true, error: 'The site’s check wasn’t completed.' };
+      await settle(SETTLE_MS);
+    }
+
+    await runInPage(win, 'window.scrollTo(0, document.body ? document.body.scrollHeight : 0); true', false, 2000);
+    await settle(SETTLE_MS);
+    page = await readRendered(win);
+    if (!page.html || page.html.length < 200) return { ok: false, error: 'The page came back empty.' };
+    return { ok: true, url: win.webContents.getURL() || url.href, html: page.html.slice(0, MAX_PAGE_BYTES) };
+  } catch (err) {
+    if (closedByUser) return { ok: false, error: 'The reader window was closed.' };
+    return { ok: false, error: errorText(err) };
+  } finally {
+    if (!win.isDestroyed()) win.destroy();
   }
 }
 
@@ -222,6 +383,9 @@ export async function caselistDownload(filePath: unknown): Promise<Result<{ byte
 
 export function registerWebResearchIpc(): void {
   ipcMain.handle('research:fetch-page', (_e, url: unknown) => fetchPage(url));
+  ipcMain.handle('research:render-page', (_e, url: unknown, opts: unknown) =>
+    renderPage(url, { visible: !!(opts && typeof opts === 'object' && (opts as { visible?: unknown }).visible === true) }),
+  );
   ipcMain.handle('caselist:status', async () => ({ signedIn: (await loadToken()) !== null }));
   ipcMain.handle('caselist:login', (_e, username: unknown, password: unknown) =>
     caselistLogin(username, password),

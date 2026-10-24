@@ -37,7 +37,14 @@ import { autoUpdater } from 'electron-updater';
 import { bundlePathFromExe, launchSwapHelper, macBundleSelfUpdatable } from './mac-swap-update.js';
 import { registerVoiceIpc } from './voice/ipc';
 import { registerFlowIpc } from './flow-bridge.js';
-import { registerWebResearchIpc } from './web-research.js';
+import { isReaderWindow, registerWebResearchIpc } from './web-research.js';
+
+/** Every window except Cooky's background article readers (web-research.ts),
+ *  which are short-lived, have no editor, and must never take part in
+ *  window lists, broadcasts or the quit flow. */
+function editorWindows(): BrowserWindow[] {
+  return BrowserWindow.getAllWindows().filter((w) => !isReaderWindow(w));
+}
 import { registerPairingIpc, relayUrl } from './pairing-ipc.js';
 import { LITE_BUILD } from './lite-build.js';
 import {
@@ -308,7 +315,7 @@ function pickMultiPaneTarget(): BrowserWindow | null {
   if (focused && !focused.isDestroyed() && multiPaneWindows.has(focused.id)) {
     return focused;
   }
-  for (const w of BrowserWindow.getAllWindows()) {
+  for (const w of editorWindows()) {
     if (!w.isDestroyed() && multiPaneWindows.has(w.id)) return w;
   }
   return null;
@@ -1941,7 +1948,7 @@ ipcMain.handle('host:delete-history', async (_event, roomId: string) => {
 ipcMain.handle('host:pick-history-file', async (event) => {
   await ensureJournalsDir();
   const win = BrowserWindow.fromWebContents(event.sender);
-  const result = await dialog.showOpenDialog(win ?? BrowserWindow.getAllWindows()[0]!, {
+  const result = await dialog.showOpenDialog(win ?? editorWindows()[0]!, {
     defaultPath: journalsDir(),
     filters: [{ name: 'CardMirror session history', extensions: ['cmir-history'] }],
     properties: ['openFile'],
@@ -2032,7 +2039,7 @@ function getLearnStoreOwner(): LearnStoreOwnerLike {
     learnStoreOwner = mod.createLearnStoreOwner({
       dir: app.getPath('userData'),
       onChanged: (json) => {
-        for (const w of BrowserWindow.getAllWindows()) {
+        for (const w of editorWindows()) {
           if (!w.isDestroyed()) w.webContents.send('host:learn-store-changed', json);
         }
       },
@@ -2151,7 +2158,7 @@ ipcMain.handle('host:journal-and-close-other-windows', async (event) => {
   // whose surviving window never collected them.
   modeSwitchJournaledDocs = [];
   try {
-  const others = BrowserWindow.getAllWindows().filter(
+  const others = editorWindows().filter(
     (w) => w !== sender && !w.isDestroyed(),
   );
   await Promise.all(
@@ -2279,7 +2286,7 @@ function broadcastSpeechState(): void {
   const payload = speechRegistration
     ? { uid: speechRegistration.uid }
     : { uid: null };
-  for (const w of BrowserWindow.getAllWindows()) {
+  for (const w of editorWindows()) {
     if (!w.isDestroyed()) w.webContents.send('speech:changed', payload);
   }
 }
@@ -2402,7 +2409,7 @@ ipcMain.handle('host:list-windows', async (event) => {
     const i = windowFocusOrder.indexOf(id);
     return i === -1 ? Number.MAX_SAFE_INTEGER : i;
   };
-  return BrowserWindow.getAllWindows()
+  return editorWindows()
     .filter((w) => !w.isDestroyed() && !isTimerWindow(w))
     .sort((a, b) => rank(a.id) - rank(b.id))
     .map((w) => ({
@@ -2443,7 +2450,7 @@ interface DropzoneItem {
 let dropzoneItems: DropzoneItem[] = [];
 
 function broadcastDropzoneState(): void {
-  for (const w of BrowserWindow.getAllWindows()) {
+  for (const w of editorWindows()) {
     if (!w.isDestroyed()) w.webContents.send('dropzone:changed', dropzoneItems);
   }
 }
@@ -2537,7 +2544,7 @@ function persistQuickCards(): Promise<void> {
 }
 
 function broadcastQuickCardsState(): void {
-  for (const w of BrowserWindow.getAllWindows()) {
+  for (const w of editorWindows()) {
     if (!w.isDestroyed()) w.webContents.send('quick-cards:changed', quickCards);
   }
 }
@@ -2826,7 +2833,7 @@ app.on('browser-window-created', (_event, win) => {
     // that are open in those windows. The timer pop-out doesn't
     // count — it's chrome, not a document window, and it closes
     // itself right after the last doc window anyway.
-    const remaining = BrowserWindow.getAllWindows().filter(
+    const remaining = editorWindows().filter(
       (w) => !w.isDestroyed() && !isTimerWindow(w),
     );
     if (remaining.length === 0) {
@@ -3192,7 +3199,7 @@ function dialogParentWindow(): BrowserWindow | null {
   // document window even when the float happens to hold focus.
   const focused = BrowserWindow.getFocusedWindow();
   if (focused && !isTimerWindow(focused)) return focused;
-  return BrowserWindow.getAllWindows().find((w) => !isTimerWindow(w)) ?? null;
+  return editorWindows().find((w) => !isTimerWindow(w)) ?? null;
 }
 
 /** Re-entrancy guard. A single in-flight check guards the manual
@@ -3403,7 +3410,7 @@ function isTimerWindow(w: BrowserWindow): boolean {
 ipcMain.handle('host:arrange-windows', async (event, opts: ArrangeOptions) => {
   const sender = BrowserWindow.fromWebContents(event.sender);
   if (!sender || sender.isDestroyed()) return { speechFound: false, arranged: 0 };
-  const windows = BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed() && !isTimerWindow(w));
+  const windows = editorWindows().filter((w) => !w.isDestroyed() && !isTimerWindow(w));
   let speechWindowId: number | null = speechRegistration?.windowId ?? null;
   if (speechWindowId === null) {
     for (const [uid, windowId] of docOwners.entries()) {
@@ -3441,7 +3448,7 @@ ipcMain.handle('host:arrange-windows', async (event, opts: ArrangeOptions) => {
  *  ownerless on macOS. Called from doc-window `closed` handlers. */
 function closeTimerWindowIfOrphaned(): void {
   if (!timerWindow || timerWindow.isDestroyed()) return;
-  const others = BrowserWindow.getAllWindows().filter(
+  const others = editorWindows().filter(
     (w) => !w.isDestroyed() && !isTimerWindow(w),
   );
   if (others.length === 0) timerWindow.close();
@@ -3517,7 +3524,7 @@ function openTimerWindow(popoutOpts?: TimerPopoutOpts): void {
     // Backstop for closes that skipped the renderer's own pagehide
     // write (crash, force-close): tell surviving windows to clear
     // the popped-out flag so the in-app panel comes back.
-    for (const w of BrowserWindow.getAllWindows()) {
+    for (const w of editorWindows()) {
       if (!w.isDestroyed()) w.webContents.send('timer:popout-closed');
     }
   });
@@ -3589,7 +3596,7 @@ let macStagedUpdateZip: string | null = null;
 
 function setUpdateChip(next: Exclude<UpdateChipState, null>): void {
   updateChip = next;
-  for (const w of BrowserWindow.getAllWindows()) {
+  for (const w of editorWindows()) {
     if (!w.isDestroyed()) w.webContents.send('update:chip', updateChip);
   }
 }
@@ -3722,7 +3729,7 @@ if (!gotLock) {
     if (filePath) void openExternalFile(filePath);
     // Pull the user's attention back to a window so they see the
     // newly-opened doc (or at least the existing app) on top.
-    const win = mainWindow ?? BrowserWindow.getAllWindows()[0];
+    const win = mainWindow ?? editorWindows()[0];
     if (win && !win.isDestroyed()) {
       if (win.isMinimized()) win.restore();
       win.focus();
@@ -3820,7 +3827,7 @@ void app.whenReady().then(() => {
   });
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (editorWindows().length === 0) createWindow();
   });
 });
 

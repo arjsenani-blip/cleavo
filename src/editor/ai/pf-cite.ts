@@ -30,6 +30,7 @@ import { AiActivity } from './ai-activity.js';
 import { claimRegion } from './edit-coordinator.js';
 import { showToast } from '../toast.js';
 import { promptForText } from '../text-prompt.js';
+import { showConfirm } from '../confirm-dialog.js';
 import { researchApi } from '../host/electron-host.js';
 import { ensureTagAboveCite } from '../ribbon-commands.js';
 import {
@@ -349,25 +350,14 @@ export function parseDate(raw: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/** The read-aloud date: M/D within a month of today, else the year as
- *  "24" / "9" (single-digit years), or the full year before 1950 — the
- *  same convention as the AI cite creator. */
-export function shortDate(d: Date, now: Date = new Date()): string {
-  const ageMs = now.getTime() - d.getTime();
-  if (ageMs >= 0 && ageMs < 31 * 24 * 3600 * 1000) return `${d.getMonth() + 1}/${d.getDate()}`;
-  const y = d.getFullYear();
-  if (y < 1950) return String(y);
-  return String(y % 100);
-}
-
-/** "Senior fellow at Brookings" → "senior fellow at Brookings" after
- *  "Smith is"; a Title-Case job title ("Deputy Managing Editor") stays. */
 function lowerFirst(s: string): string {
   return /^[A-Z][a-z]+\s+[a-z]/.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s;
 }
 
 function fullDate(d: Date): string {
-  return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${mm}/${dd}/${d.getFullYear()}`;
 }
 
 function lastName(full: string): string {
@@ -376,61 +366,70 @@ function lastName(full: string): string {
 }
 
 /** Deterministic cite from metadata alone (AI off, or as the fallback). */
+/** Two-digit year, zero-padded: 2021 → "21", 2009 → "09". */
+export function shortDate(d: Date, _now: Date = new Date()): string {
+  return String(d.getFullYear() % 100).padStart(2, '0');
+}
+
+/** "Tremblay and Coburn 21" / "Miller 26" / "Smith et al. 21". */
+export function citeLead(authors: readonly string[], publication: string, short: string): string {
+  if (authors.length === 0) return `${publication || 'Unknown'} ${short}`;
+  if (authors.length === 1) return `${lastName(authors[0]!)} ${short}`;
+  if (authors.length === 2) return `${lastName(authors[0]!)} and ${lastName(authors[1]!)} ${short}`;
+  return `${lastName(authors[0]!)} et al. ${short}`;
+}
+
+/** Deterministic cite from metadata alone (AI off, or as the fallback), in
+ *  the card format:
+ *
+ *    Tremblay and Coburn 21 [Yann Allard-Tremblay and Elaine Coburn,
+ *    <qualifications>, "Title", 06/09/2021, Publisher, URL,
+ *    Accessed 09/03/2025]
+ *
+ *  The lead (last names + year) is the read-aloud part and carries the
+ *  cite style; everything in brackets is the full citation. */
 export function formatPfCite(
   meta: PageMeta,
   now: Date = new Date(),
   quals: readonly string[] = qualificationsFor(meta),
 ): AiCiteResult {
   const date = parseDate(meta.published);
-  const short = date ? shortDate(date, now) : 'ND';
+  const short = date ? shortDate(date) : 'ND';
   const authors = meta.authors;
-  let lead: string;
-  const tokens: string[] = [];
-  if (authors.length === 0) {
-    const org = meta.publication || hostLabel(meta.url) || 'Unknown';
-    lead = `${org} ${short}`;
-    tokens.push(lead);
-  } else if (authors.length === 1) {
-    lead = `${authors[0]} ${short}`;
-    tokens.push(`${lastName(authors[0]!)} ${short}`);
-  } else if (authors.length === 2) {
-    lead = `${authors[0]} & ${authors[1]} ${short}`;
-    tokens.push(`${lastName(authors[0]!)} & `, `${lastName(authors[1]!)} ${short}`);
-  } else {
-    lead = `${authors[0]} et al. ${short}`;
-    tokens.push(`${lastName(authors[0]!)} et al. ${short}`);
+  const lead = citeLead(authors, meta.publication || hostLabel(meta.url), short);
+
+  const inside: string[] = [];
+  if (authors.length > 0) {
+    const names =
+      authors.length === 2 ? `${authors[0]} and ${authors[1]}` : authors.length > 2 ? `${authors.slice(0, -1).join(', ')}, and ${authors[authors.length - 1]}` : authors[0]!;
+    inside.push(names);
+    const known = authors.map((a, i) => (quals[i] ? (authors.length > 1 ? `${a.split(/\s+/)[0]} is ${lowerFirst(quals[i]!)}` : quals[i]!) : ''));
+    inside.push(known.some(Boolean) ? known.filter(Boolean).join('; ') : '[qualifications]');
   }
-  const parts = [lead];
-  if (authors.length === 1) {
-    parts.push(quals[0] || '[qualifications]');
-  } else if (authors.length > 1) {
-    const each = authors.map((a, i) => `${lastName(a)} is ${quals[i] ? lowerFirst(quals[i]!) : '[qualifications]'}`);
-    parts.push(each.join('; '));
-  }
-  if (meta.title) parts.push(`"${meta.title.replace(/"/g, '\'')},"`);
-  if (meta.publication) parts.push(meta.publication);
-  parts.push(date ? fullDate(date) : 'no date');
-  parts.push(meta.url);
-  parts.push(`accessed ${fullDate(now)}`);
-  // `"Title,"` already ends in its comma; join the rest with ", ".
-  const cite = parts.reduce((acc, p, i) => (i === 0 ? p : acc.endsWith(',"') ? `${acc} ${p}` : `${acc}, ${p}`), '');
-  return { cite, tokens };
+  if (meta.title) inside.push(`"${meta.title.replace(/"/g, '\'')}"`);
+  inside.push(date ? fullDate(date) : 'no date');
+  if (meta.publication) inside.push(meta.publication);
+  inside.push(meta.url);
+  inside.push(`Accessed ${fullDate(now)}`);
+  return { cite: `${lead} [${inside.join(', ')}]`, tokens: [lead] };
 }
 
-export const PF_CITE_PROMPT = `You write evidence citations for high school Public Forum debate cards, following the NSDA evidence rules.
+export const PF_CITE_PROMPT = `You write evidence citations for high school Public Forum debate cards, following the NSDA evidence rules, in this exact format:
 
-A complete PF cite contains, in this order:
-1. The read-aloud lead: author full name(s) followed by the short date. Short date is M/D when the piece is less than a month old as of today ({DATE}); otherwise the 2-digit year (single digit for 2001-2009, e.g. "9"; full year before 1950). Two authors: "First Last & First Last 24". Three or more: "First Last et al. 24". No author: the organization or publication name in the author slot.
-2. Author qualifications — the credentials that make the author credible (position, employer, degree, expertise). Take them only from the byline, bio, or article text provided. If none are given, write "[qualifications]" so the debater knows to fill it in. Never invent credentials.
-3. The full title in double quotes followed by a comma inside the quotes.
-4. The publication or publisher.
-5. The full publication date as M/D/YYYY (or YYYY when only the year is known; "no date" when unknown).
-6. The full URL.
-7. "accessed {DATE_SLASH}".
+LEAD [FULL NAMES, QUALIFICATIONS, "TITLE", MM/DD/YYYY, PUBLICATION, URL, Accessed {DATE_SLASH}]
 
-Examples:
-Jane Smith 24, Senior Fellow in Foreign Policy at the Brookings Institution and former State Department official, "Why Sanctions Fail," Foreign Affairs, 3/14/2024, https://www.foreignaffairs.com/..., accessed {DATE_SLASH}
-Laura Weiss & John Bresnahan 3/26, Weiss is a congressional reporter at Punchbowl News; Bresnahan is co-founder of Punchbowl News, "The House Is Stuck," Punchbowl News, 3/26/2026, https://punchbowl.news/..., accessed {DATE_SLASH}
+- LEAD is what the debater reads aloud: the author's LAST name and the two-digit year. One author: "Miller 26". Two authors: "Tremblay and Coburn 21". Three or more: "Smith et al. 21". No author: the organization or publication name, e.g. "Brookings Institution 24". Years 2001-2009 are written "01"-"09".
+- Inside the brackets:
+  1. The full name(s): "Yann Allard-Tremblay and Elaine Coburn".
+  2. The qualifications — the credentials that make the author credible (position, employer, degrees, expertise), taken only from the byline, bio, author page or article text provided. For several authors, give each person's credentials (e.g. "Yann is a member of the Huron-Wendat First Nation; Elaine is an Associate Professor of International Studies at York University"). If none are given, write "[qualifications]". Never invent credentials.
+  3. The full title in double quotes.
+  4. The publication date as MM/DD/YYYY with leading zeros (or YYYY when only the year is known; "no date" when unknown).
+  5. The publication or publisher.
+  6. The full URL.
+  7. "Accessed {DATE_SLASH}".
+
+Example:
+Tremblay and Coburn 21 [Yann Allard-Tremblay and Elaine Coburn, Yann obtained his PhD in philosophy from the universities of St Andrews and Stirling and is a member of the Huron-Wendat First Nation; Elaine is an Associate Professor of International Studies at York University in Toronto, "The Flying Heads of Settler Colonialism; or the Ideological Erasures of Indigenous Peoples in Political Theorizing", 06/09/2021, SAGE Publications, https://journals.sagepub.com/doi/10.1177/00323217211018127, Accessed {DATE_SLASH}]
 
 Rules:
 - Use only facts in the submission. Do not add a qualification, date, or name you were not given.
@@ -442,10 +441,8 @@ Respond in exactly this delimited format:
 [[CITE]]
 <the full citation on one line>
 [[TOKENS]]
-<one token per line>
-[[END]]
-
-TOKENS are the verbatim substrings to style as the read-aloud cite: LASTNAME(s) + SHORTDATE of the lead. One author "Jane Smith 24" → "Smith 24". Two authors "Laura Weiss & John Bresnahan 3/26" → "Weiss & " then "Bresnahan 3/26". Three+ "Jie Jiang et al. 23" → "Jiang et al. 23". Organization lead "Brookings Institution 24" → "Brookings Institution 24".`;
+<the LEAD exactly as written, e.g. Tremblay and Coburn 21>
+[[END]]`;
 
 export function resolvePfPrompt(now: Date = new Date()): string {
   return PF_CITE_PROMPT.split('{DATE}')
@@ -492,26 +489,86 @@ function emptyMeta(url: string): PageMeta {
   };
 }
 
-/** Fetch + read the page, then the author's profile page when the article
- *  itself carries no credentials. */
+/** Fill blanks in `base` from `extra` (a second read of the same page). */
+function mergeMeta(base: PageMeta, extra: PageMeta): PageMeta {
+  return {
+    url: base.url || extra.url,
+    title: base.title || extra.title,
+    publication: base.publication && base.publication !== hostLabel(base.url) ? base.publication : extra.publication || base.publication,
+    authors: base.authors.length > 0 ? base.authors : extra.authors,
+    published: base.published || extra.published,
+    description: base.description || extra.description,
+    bylineText: clean(`${base.bylineText} | ${extra.bylineText}`).slice(0, 3000),
+    excerpt: base.excerpt.length >= extra.excerpt.length ? base.excerpt : extra.excerpt,
+    authorLinks: [...new Set([...base.authorLinks, ...extra.authorLinks])].slice(0, 4),
+    bioText: clean(`${base.bioText} | ${extra.bioText}`).slice(0, 12000),
+  };
+}
+
+const othersOf = (authors: readonly string[], i: number) => authors.filter((_, j) => j !== i);
+
+/** Read the article, then — when the plain download is blocked or leaves
+ *  the author or their credentials missing — open it in the hidden
+ *  background browser (scripts run, the page scrolls to its end) and read
+ *  that rendering too. Author profile pages get the same two-step read. */
 async function gatherMeta(url: string): Promise<{ meta: PageMeta; quals: string[] }> {
   const research = researchApi();
   if (!research) return { meta: emptyMeta(url), quals: [] };
+  const needsMore = (m: PageMeta, q: string[]) => m.authors.length === 0 || q.some((x) => !x) || !m.published;
+
   const page = await research.fetchPage(url);
-  if (!page.ok) {
-    showToast(`Couldn’t read the page (${page.error}).`, { durationMs: 3000 });
-    return { meta: emptyMeta(url), quals: [] };
-  }
-  const meta = extractPageMetadata(page.html, page.url);
+  let meta = page.ok ? extractPageMetadata(page.html, page.url) : emptyMeta(url);
   let quals = qualificationsFor(meta);
+
+  if ((!page.ok || needsMore(meta, quals)) && research.renderPage) {
+    let rendered = await research.renderPage(url);
+    // A bot check: never worked around — the user gets past it themselves
+    // in a visible reader window, which reads the page once it appears.
+    if (!rendered.ok && rendered.blocked) {
+      const go = await showConfirm({
+        title: 'This site checks for robots',
+        message:
+          'Cooky can’t read this article in the background. Open it in a reader window? Get past the site’s check there, and Cooky reads the page and closes the window.',
+        confirmLabel: 'Open reader',
+        cancelLabel: 'Cite from the link alone',
+      });
+      if (go) rendered = await research.renderPage(url, { visible: true });
+    }
+    if (rendered.ok) {
+      meta = mergeMeta(meta, extractPageMetadata(rendered.html, rendered.url));
+      quals = meta.authors.map((a, i) => quals[i] || findQualifications(a, `${meta.bylineText} | ${meta.bioText} | ${meta.excerpt}`, othersOf(meta.authors, i)));
+    } else if (!page.ok) {
+      showToast(`Couldn’t read the page (${rendered.error}).`, { durationMs: 3000 });
+      return { meta, quals };
+    }
+  } else if (!page.ok) {
+    showToast(`Couldn’t read the page (${page.error}).`, { durationMs: 3000 });
+    return { meta, quals };
+  }
+
+  // Author profile pages: plain read first, the background browser if that
+  // fails or still turns up no credentials.
   if (meta.authors.length > 0 && quals.some((q) => !q)) {
     for (const link of meta.authorLinks) {
-      const profile = await research.fetchPage(link);
-      if (!profile.ok) continue;
-      const pm = extractPageMetadata(profile.html, profile.url);
-      const text = `${pm.description} | ${pm.bioText} | ${pm.excerpt}`;
-      quals = meta.authors.map((a, i) => quals[i] || findQualifications(a, text, meta.authors.filter((_, j) => j !== i)));
-      meta.bioText = clean(`${meta.bioText} | ${pm.description} | ${pm.excerpt.slice(0, 1200)}`).slice(0, 5000);
+      let profileText = '';
+      const plain = await research.fetchPage(link);
+      if (plain.ok) {
+        const pm = extractPageMetadata(plain.html, plain.url);
+        profileText = `${pm.description} | ${pm.bioText} | ${pm.excerpt}`;
+      }
+      const tryText = (text: string) =>
+        meta.authors.map((a, i) => quals[i] || findQualifications(a, text, othersOf(meta.authors, i)));
+      let next = tryText(profileText);
+      if (next.some((q) => !q) && research.renderPage) {
+        const rendered = await research.renderPage(link);
+        if (rendered.ok) {
+          const pm = extractPageMetadata(rendered.html, rendered.url);
+          profileText = `${profileText} | ${pm.description} | ${pm.bioText} | ${pm.excerpt}`;
+          next = tryText(profileText);
+        }
+      }
+      quals = next;
+      meta.bioText = clean(`${meta.bioText} | ${profileText.slice(0, 1500)}`).slice(0, 12000);
       if (quals.every(Boolean)) break;
     }
   }

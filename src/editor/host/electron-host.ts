@@ -168,6 +168,11 @@ export type ResearchResult<T> = ({ ok: true } & T) | { ok: false; error: string;
  *  (or on an older preload without it). */
 export interface ResearchApi {
   fetchPage(url: string): Promise<ResearchResult<{ url: string; html: string }>>;
+  /** Load the page in a hidden background browser (scripts run) and
+   *  return the rendered HTML. Null when this build lacks it. */
+  renderPage:
+    | ((url: string, opts?: { visible?: boolean }) => Promise<ResearchResult<{ url: string; html: string }> & { blocked?: boolean }>)
+    | null;
   caselistStatus(): Promise<{ signedIn: boolean }>;
   caselistLogin(username: string, password: string): Promise<ResearchResult<object>>;
   caselistLogout(): Promise<void>;
@@ -187,6 +192,7 @@ export function researchApi(): ResearchApi | null {
   if (!x?.researchFetchPage || !x.caselistGet) return null;
   return {
     fetchPage: (url) => x.researchFetchPage!(url),
+    renderPage: x.researchRenderPage ? (url, opts) => x.researchRenderPage!(url, opts) : null,
     caselistStatus: () => x.caselistStatus!(),
     caselistLogin: (u, p) => x.caselistLogin!(u, p),
     caselistLogout: () => x.caselistLogout!(),
@@ -311,6 +317,10 @@ interface ElectronAPI {
   saveToDownloads?(filename: string, bytes: Uint8Array): Promise<{ name: string; handle: string }>;
   claimLaunchSplash?(): Promise<boolean>;
   researchFetchPage?(url: string): Promise<ResearchResult<{ url: string; html: string }>>;
+  researchRenderPage?(
+    url: string,
+    opts?: { visible?: boolean },
+  ): Promise<ResearchResult<{ url: string; html: string }> & { blocked?: boolean }>;
   caselistStatus?(): Promise<{ signedIn: boolean }>;
   caselistLogin?(username: string, password: string): Promise<ResearchResult<object>>;
   caselistLogout?(): Promise<void>;
