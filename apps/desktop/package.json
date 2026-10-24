@@ -93,8 +93,7 @@
       "extendInfo": {
         "NSAppSleepDisabled": true,
         "NSMicrophoneUsageDescription": "Lucas’ Brain uses the microphone for voice control and dictation.",
-        "CFBundleDisplayName": "Lucas’ Brain",
-        "CFBundleName": "Lucas’ Brain"
+        "CFBundleDisplayName": "Lucas’ Brain"
       },
       "hardenedRuntime": true,
       "entitlements": "build/entitlements.mac.plist",
