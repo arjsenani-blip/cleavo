@@ -94,6 +94,11 @@ function readerSession(): Electron.Session {
     ses.on('will-download', (e) => e.preventDefault());
     // A normal desktop Chrome UA: some sites serve bylines only to browsers.
     ses.setUserAgent(ses.getUserAgent().replace(/\s?(Electron|Cooky|cooky)\/[\d.]+/g, ''));
+    // Hidden reads skip video, audio and web fonts — text is all they need.
+    ses.webRequest.onBeforeRequest((details, cb) => {
+      const hidden = details.webContentsId !== undefined && hiddenReaders.has(details.webContentsId);
+      cb({ cancel: hidden && (details.resourceType === 'media' || details.resourceType === 'font') });
+    });
   }
   return ses;
 }
@@ -101,12 +106,17 @@ function readerSession(): Electron.Session {
 /** Reader windows, so the rest of the app can leave them out of window
  *  lists, broadcasts and the quit flow. */
 const readerWindows = new WeakSet<BrowserWindow>();
+/** webContents ids of the hidden (background) readers. */
+const hiddenReaders = new Set<number>();
 export function isReaderWindow(w: BrowserWindow): boolean {
   return readerWindows.has(w);
 }
 
 const RENDER_TIMEOUT_MS = 25_000;
-const SETTLE_MS = 1_200;
+/** A hidden read doesn't wait for every ad and tracker to finish: the
+ *  byline and bio are in the page long before the load event. */
+const HIDDEN_READY_MS = 6_000;
+const SETTLE_MS = 600;
 /** How long a visible reader waits for the user to get past a check. */
 const VISIBLE_WAIT_MS = 120_000;
 
@@ -151,7 +161,7 @@ async function readRendered(win: BrowserWindow): Promise<{ title: string; html: 
  *  the real page appears (or the user closes it). */
 export function renderPage(rawUrl: unknown, opts: { visible?: boolean } = {}): Promise<RenderResult> {
   // Hard ceiling on the whole read, whatever the page does.
-  const ceiling = opts.visible === true ? VISIBLE_WAIT_MS + 40_000 : 45_000;
+  const ceiling = opts.visible === true ? VISIBLE_WAIT_MS + 40_000 : 15_000;
   return Promise.race([
     renderPageInner(rawUrl, opts),
     new Promise<RenderResult>((res) =>
@@ -188,6 +198,8 @@ async function renderPageInner(rawUrl: unknown, opts: { visible?: boolean }): Pr
     },
   });
   readerWindows.add(win);
+  const wcId = win.webContents.id;
+  if (!visible) hiddenReaders.add(wcId);
   win.webContents.setAudioMuted(true);
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   let closedByUser = false;
@@ -201,8 +213,12 @@ async function renderPageInner(rawUrl: unknown, opts: { visible?: boolean }): Pr
       () => true, // a sub-resource abort still leaves a usable page
     );
     if (visible) win.show();
+    // A hidden read goes on once the document is parsed (dom-ready), or
+    // after a few seconds at most, instead of waiting for the full load.
+    const domReady = new Promise<boolean>((res) => win.webContents.once('dom-ready', () => res(true)));
+    const ready = visible ? loaded : Promise.race([loaded, domReady, settle(HIDDEN_READY_MS).then(() => true)]);
     const timedOut = settle(RENDER_TIMEOUT_MS).then(() => false);
-    if (!(await Promise.race([loaded, timedOut]))) {
+    if (!(await Promise.race([ready, timedOut]))) {
       return { ok: false, error: 'The page took too long to load.' };
     }
     await settle(SETTLE_MS);
@@ -232,6 +248,7 @@ async function renderPageInner(rawUrl: unknown, opts: { visible?: boolean }): Pr
     if (closedByUser) return { ok: false, error: 'The reader window was closed.' };
     return { ok: false, error: errorText(err) };
   } finally {
+    hiddenReaders.delete(wcId);
     if (!win.isDestroyed()) win.destroy();
   }
 }

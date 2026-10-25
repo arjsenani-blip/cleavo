@@ -255,7 +255,7 @@ export function extractPageMetadata(html: string, url: string): PageMeta {
 }
 
 const ROLE_WORDS =
-  /\b(professor|fellow|director|president|chair(?:man|woman)?|founder|co-founder|editor|reporter|correspondent|columnist|writer|journalist|analyst|economist|researcher|scientist|scholar|lecturer|dean|chief|ceo|cfo|officer|minister|secretary|ambassador|senator|representative|advisor|adviser|consultant|attorney|lawyer|judge|physician|doctor|engineer|historian|author|contributor|manager|associate|partner|lead|head|candidate|student|expert|specialist|commissioner|governor|member|staff)\b/i;
+  /\b(professor|fellow|director|president|chair(?:man|woman)?|founder|co-founder|editor|reporter|producer|host|co-host|anchor|correspondent|columnist|writer|journalist|analyst|economist|researcher|scientist|scholar|lecturer|dean|chief|ceo|cfo|officer|minister|secretary|ambassador|senator|representative|advisor|adviser|consultant|attorney|lawyer|judge|physician|doctor|engineer|historian|author|contributor|manager|associate|partner|lead|head|candidate|student|expert|specialist|commissioner|governor|member|staff)\b/i;
 
 /** Words that end a Title-Case byline credential ("… Editor Share"). */
 const BYLINE_STOP = /^(?:Share|Updated|Published|Posted|By|Follow|Email|More|Read|Listen|Print|Save|Subscribe|Download|And|The|As|In|On)$/;
@@ -287,7 +287,12 @@ export function findQualifications(author: string, text: string, others: readonl
       const i = q.indexOf(o);
       if (i >= 0) end = Math.min(end, i);
     }
-    return q.slice(0, end);
+    // Cutting at a co-author's name can strand a connector ("…, often
+    // with"); drop it.
+    return q
+      .slice(0, end)
+      .replace(/[\s,;:]*(?:\b(?:often|usually|frequently|together|alongside|along|with|and|or|by|including|such as)\b[\s,;:]*)+$/i, '')
+      .trim();
   };
   const patterns = [
     new RegExp(`${who}\\s+(?:is|was|serves as|works as|has been)\\s+(?:an?\\s+|the\\s+)?([^.|]{8,260})`, 'i'),
@@ -351,7 +356,7 @@ export function parseDate(raw: string): Date | null {
 }
 
 function lowerFirst(s: string): string {
-  return /^[A-Z][a-z]+\s+[a-z]/.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s;
+  return /^[A-Z][a-z]+(?:-[a-z]+)?\s+[a-z]/.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s;
 }
 
 function fullDate(d: Date): string {
@@ -403,8 +408,12 @@ export function formatPfCite(
     const names =
       authors.length === 2 ? `${authors[0]} and ${authors[1]}` : authors.length > 2 ? `${authors.slice(0, -1).join(', ')}, and ${authors[authors.length - 1]}` : authors[0]!;
     inside.push(names);
-    const known = authors.map((a, i) => (quals[i] ? (authors.length > 1 ? `${a.split(/\s+/)[0]} is ${lowerFirst(quals[i]!)}` : quals[i]!) : ''));
-    inside.push(known.some(Boolean) ? known.filter(Boolean).join('; ') : '[qualifications]');
+    // Every author keeps a slot: a credential that couldn't be found shows
+    // as "[qualifications]" so the gap is visible, never silently dropped.
+    const each = authors.map((a, i) =>
+      authors.length > 1 ? `${a.split(/\s+/)[0]} is ${quals[i] ? lowerFirst(quals[i]!) : '[qualifications]'}` : quals[i] || '[qualifications]',
+    );
+    inside.push(quals.some(Boolean) || authors.length === 1 ? each.join('; ') : '[qualifications]');
   }
   if (meta.title) inside.push(`"${meta.title.replace(/"/g, '\'')}"`);
   inside.push(date ? fullDate(date) : 'no date');
@@ -507,6 +516,214 @@ function mergeMeta(base: PageMeta, extra: PageMeta): PageMeta {
 
 const othersOf = (authors: readonly string[], i: number) => authors.filter((_, j) => j !== i);
 
+// ─── Searching the web for an author's credentials ─────────────────
+
+export interface SearchResult {
+  url: string;
+  title: string;
+  snippet: string;
+}
+
+/** Results from DuckDuckGo's lightweight HTML results page. Links come
+ *  wrapped in a redirect (`//duckduckgo.com/l/?uddg=<url>`); unwrap them. */
+/** DuckDuckGo double-encodes some characters ("NPR&#39;s"). */
+function decodeEntities(t: string): string {
+  return t
+    .replace(/&#(\d+);/g, (_, n: string) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n: string) => String.fromCharCode(parseInt(n, 16)))
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&');
+}
+
+export function parseSearchResults(html: string): SearchResult[] {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const out: SearchResult[] = [];
+  doc.querySelectorAll('.result').forEach((r) => {
+    const a = r.querySelector<HTMLAnchorElement>('a.result__a');
+    const raw = a?.getAttribute('href') ?? '';
+    let url = raw;
+    try {
+      const u = new URL(raw, 'https://duckduckgo.com');
+      url = u.searchParams.get('uddg') ?? u.href;
+    } catch {
+      return;
+    }
+    if (!/^https?:/i.test(url)) return;
+    out.push({
+      url,
+      title: decodeEntities(clean(a?.textContent)),
+      snippet: decodeEntities(clean(r.querySelector('.result__snippet')?.textContent)),
+    });
+  });
+  return out;
+}
+
+const SOCIAL = /(^|\.)(linkedin|facebook|instagram|twitter|x|tiktok|pinterest|youtube|reddit)\.com$/i;
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+const TOPIC_STOP = new Set(
+  'about after again against also among because been before being between both could does during each every from have here into just like more most much must never only other over said same should since some such than that their them then there these they this those through under until very were what when where which while will with would your yours year years news says report reports'.split(' '),
+);
+
+/** Distinctive words from the article's title and description — what the
+ *  author writes about — for telling namesakes apart. */
+export function topicWords(meta: PageMeta): string[] {
+  const words = `${meta.title} ${meta.description}`
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length >= 5 && !TOPIC_STOP.has(w));
+  return [...new Set(words)].slice(0, 12);
+}
+
+/** How strongly a piece of text ties back to THIS article's author. A
+ *  strong tie — the article's own site, its publication named as a whole
+ *  word, or a co-author — is required; the subject and the site's name
+ *  only add weight on top of one. A namesake who merely writes about a
+ *  similar topic (or a student paper that mentions the outlet's initials
+ *  in passing) never counts on its own. 0 means no tie at all. */
+export function contextTie(text: string, host: string, meta: PageMeta, others: readonly string[]): number {
+  const t = text.toLowerCase();
+  const articleHost = hostOf(meta.url);
+  const pub = meta.publication.toLowerCase();
+  const word = (w: string) => new RegExp(`(^|[^a-z0-9])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^a-z0-9])`).test(t);
+  let strong = 0;
+  if (articleHost && (host === articleHost || host.endsWith(`.${articleHost}`))) strong += 4;
+  if (pub.length > 2 && word(pub)) strong += 3;
+  for (const o of others) if (word(lastName(o).toLowerCase())) strong += 2;
+  if (strong === 0) return 0;
+  let score = strong;
+  if (articleHost && t.includes(articleHost.split('.')[0]!)) score += 1;
+  const topic = topicWords(meta).filter((w) => t.includes(w)).length;
+  score += Math.min(3, topic);
+  return score;
+}
+
+/** Order results by how likely they are about THIS author, using the
+ *  article as context: its own site first, then pages that mention the
+ *  publication, the co-authors, or the subject. Results with no tie to the
+ *  article are dropped — people share names (searching one NPR reporter's
+ *  name turns up an unrelated LinkedIn namesake first). */
+export function rankAuthorResults(
+  results: readonly SearchResult[],
+  author: string,
+  meta: PageMeta,
+  others: readonly string[] = [],
+): SearchResult[] {
+  const last = lastName(author).toLowerCase();
+  const scored = results.map((r) => {
+    const host = hostOf(r.url);
+    const text = `${r.title} ${r.snippet}`;
+    let score = contextTie(text, host, meta, others);
+    if (score > 0 && !text.toLowerCase().includes(last)) score = 0;
+    if (score > 0 && SOCIAL.test(host)) score -= 2;
+    return { r, score };
+  });
+  return scored
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map((x) => x.r);
+}
+
+/** Credentials from one search result. Besides third-person bios ("Ann
+ *  Lee is a …"), profile results describe people in their own words — a
+ *  headline title ("Ann Lee - Assistant Producer @ NPR | LinkedIn") and a
+ *  first-person summary ("I'm an assistant producer on NPR's Planet
+ *  Money and …") — read only when the result is that person's own page,
+ *  i.e. its title starts with their name. */
+export function resultQualifications(author: string, r: SearchResult, others: readonly string[] = []): string {
+  const third = findQualifications(author, `${r.title} | ${r.snippet}`, others);
+  if (third) return third;
+  if (!r.title.toLowerCase().startsWith(author.toLowerCase())) return '';
+  const upper = (q: string) => q.charAt(0).toUpperCase() + q.slice(1);
+  const mine = /\bI(?:'|’)?m\s+(?:an?\s+|the\s+)?([^.|]{8,200})|\bI am\s+(?:an?\s+|the\s+)?([^.|]{8,200})/.exec(r.snippet);
+  const first = trimQualification(mine?.[1] ?? mine?.[2] ?? '');
+  if (first && ROLE_WORDS.test(first)) return upper(first);
+  const head = new RegExp(`^${author.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+[-–—]\\s+([^|]{4,120}?)\\s*(?:\\||$)`, 'i').exec(r.title);
+  const headline = trimQualification((head?.[1] ?? '').replace(/\s+@\s+/g, ' at '));
+  return headline && ROLE_WORDS.test(headline) ? upper(headline) : '';
+}
+
+const SEARCH_URL = 'https://html.duckduckgo.com/html/?q=';
+
+/** Search "<name> qualifications" in the background browser — and, if no
+ *  result ties back to the article, "<name> <publication>" — then copy the
+ *  credentials from the best-matching snippet or, failing that, from the
+ *  top matching pages, accepting a page only if it too ties back to the
+ *  article (its site, publication, co-authors or subject). '' when nothing
+ *  trustworthy turns up. A search page showing a bot check is skipped,
+ *  never worked around. */
+const AUTHOR_SEARCH_BUDGET_MS = 10_000;
+
+/** One author's web search, capped: a slow search page or result site
+ *  can't hold the cite up — past the budget the author keeps a visible
+ *  "[qualifications]" slot instead. */
+function searchQualifications(
+  author: string,
+  meta: PageMeta,
+  others: readonly string[],
+  research: NonNullable<ReturnType<typeof researchApi>>,
+): Promise<string> {
+  return Promise.race([
+    searchQualificationsInner(author, meta, others, research),
+    new Promise<string>((res) => setTimeout(() => res(''), AUTHOR_SEARCH_BUDGET_MS)),
+  ]);
+}
+
+async function searchQualificationsInner(
+  author: string,
+  meta: PageMeta,
+  others: readonly string[],
+  research: NonNullable<ReturnType<typeof researchApi>>,
+): Promise<string> {
+  // A plain download of the results page takes about a second; the
+  // background browser is only the fallback (it takes several).
+  const searchPage = async (query: string) => {
+    const url = `${SEARCH_URL}${encodeURIComponent(query)}`;
+    const plain = await research.fetchPage(url);
+    if (plain.ok && /class="[^"]*\bresult\b/.test(plain.html)) return plain.html;
+    const rendered = research.renderPage ? await research.renderPage(url) : null;
+    return rendered?.ok ? rendered.html : '';
+  };
+  const queries = [`${author} qualifications`];
+  if (meta.publication) queries.push(`${author} ${meta.publication}`);
+  const pages = await Promise.all(queries.map(searchPage));
+  const seen = new Set<string>();
+  const ranked = rankAuthorResults(
+    pages.flatMap((html) => (html ? parseSearchResults(html) : [])).filter((r) => !seen.has(r.url) && seen.add(r.url)),
+    author,
+    meta,
+    others,
+  );
+  for (const r of ranked) {
+    const q = resultQualifications(author, r, others);
+    if (q) return q;
+  }
+  // No snippet said it: read the top two matching pages at once (plain
+  // downloads only — fast), accepting one only if it ties to the article.
+  const found = await Promise.all(
+    ranked
+      .filter((x) => !SOCIAL.test(hostOf(x.url)))
+      .slice(0, 2)
+      .map(async (r) => {
+        const plain = await research.fetchPage(r.url);
+        if (!plain.ok) return '';
+        const pm = extractPageMetadata(plain.html, plain.url);
+        const text = `${pm.title} | ${pm.description} | ${pm.bioText} | ${pm.excerpt}`;
+        return contextTie(text, hostOf(plain.url), meta, others) > 0 ? findQualifications(author, text, others) : '';
+      }),
+  );
+  return found.find(Boolean) ?? '';
+}
+
 /** Read the article, then — when the plain download is blocked or leaves
  *  the author or their credentials missing — open it in the hidden
  *  background browser (scripts run, the page scrolls to its end) and read
@@ -514,13 +731,31 @@ const othersOf = (authors: readonly string[], i: number) => authors.filter((_, j
 async function gatherMeta(url: string): Promise<{ meta: PageMeta; quals: string[] }> {
   const research = researchApi();
   if (!research) return { meta: emptyMeta(url), quals: [] };
-  const needsMore = (m: PageMeta, q: string[]) => m.authors.length === 0 || q.some((x) => !x) || !m.published;
+  const needsMore = (m: PageMeta) => m.authors.length === 0 || !m.published;
 
   const page = await research.fetchPage(url);
   let meta = page.ok ? extractPageMetadata(page.html, page.url) : emptyMeta(url);
   let quals = qualificationsFor(meta);
 
-  if ((!page.ok || needsMore(meta, quals)) && research.renderPage) {
+  // Web searches for authors without credentials start right away and run
+  // while the slower reads below happen; used only if those come up empty.
+  const searches = new Map<string, Promise<string>>();
+  const searchFor = (a: string, i: number) => {
+    let p = searches.get(a);
+    if (!p) {
+      p = searchQualifications(a, meta, othersOf(meta.authors, i), research);
+      searches.set(a, p);
+    }
+    return p;
+  };
+  meta.authors.forEach((a, i) => {
+    if (!quals[i]) void searchFor(a, i);
+  });
+
+  // The hidden browser is slow (often 10s+ on a news page), so it's used
+  // only when the plain read failed or is missing the author or date —
+  // missing credentials are left to the profile pages and web searches.
+  if ((!page.ok || needsMore(meta)) && research.renderPage) {
     let rendered = await research.renderPage(url);
     // A bot check: never worked around — the user gets past it themselves
     // in a visible reader window, which reads the page once it appears.
@@ -537,6 +772,9 @@ async function gatherMeta(url: string): Promise<{ meta: PageMeta; quals: string[
     if (rendered.ok) {
       meta = mergeMeta(meta, extractPageMetadata(rendered.html, rendered.url));
       quals = meta.authors.map((a, i) => quals[i] || findQualifications(a, `${meta.bylineText} | ${meta.bioText} | ${meta.excerpt}`, othersOf(meta.authors, i)));
+      meta.authors.forEach((a, i) => {
+        if (!quals[i]) void searchFor(a, i);
+      });
     } else if (!page.ok) {
       showToast(`Couldn’t read the page (${rendered.error}).`, { durationMs: 3000 });
       return { meta, quals };
@@ -546,31 +784,28 @@ async function gatherMeta(url: string): Promise<{ meta: PageMeta; quals: string[
     return { meta, quals };
   }
 
-  // Author profile pages: plain read first, the background browser if that
-  // fails or still turns up no credentials.
-  if (meta.authors.length > 0 && quals.some((q) => !q)) {
-    for (const link of meta.authorLinks) {
-      let profileText = '';
-      const plain = await research.fetchPage(link);
-      if (plain.ok) {
+  // Author profile pages, all at once (plain downloads — the web searches
+  // already under way cover anything these miss).
+  if (meta.authors.length > 0 && quals.some((q) => !q) && meta.authorLinks.length > 0) {
+    const profiles = await Promise.all(
+      meta.authorLinks.slice(0, 4).map(async (link) => {
+        const plain = await research.fetchPage(link);
+        if (!plain.ok) return '';
         const pm = extractPageMetadata(plain.html, plain.url);
-        profileText = `${pm.description} | ${pm.bioText} | ${pm.excerpt}`;
-      }
-      const tryText = (text: string) =>
-        meta.authors.map((a, i) => quals[i] || findQualifications(a, text, othersOf(meta.authors, i)));
-      let next = tryText(profileText);
-      if (next.some((q) => !q) && research.renderPage) {
-        const rendered = await research.renderPage(link);
-        if (rendered.ok) {
-          const pm = extractPageMetadata(rendered.html, rendered.url);
-          profileText = `${profileText} | ${pm.description} | ${pm.bioText} | ${pm.excerpt}`;
-          next = tryText(profileText);
-        }
-      }
-      quals = next;
+        return `${pm.description} | ${pm.bioText} | ${pm.excerpt}`;
+      }),
+    );
+    for (const profileText of profiles) {
+      quals = quals.map((q, i) => q || findQualifications(meta.authors[i]!, profileText, othersOf(meta.authors, i)) || '');
       meta.bioText = clean(`${meta.bioText} | ${profileText.slice(0, 1500)}`).slice(0, 12000);
-      if (quals.every(Boolean)) break;
     }
+  }
+
+  // Last resort: the web searches (already under way for authors known
+  // from the first read).
+  if (meta.authors.length > 0 && quals.some((q) => !q)) {
+    const found = quals;
+    quals = await Promise.all(meta.authors.map((a, i) => found[i] || searchFor(a, i)));
   }
   return { meta, quals };
 }
