@@ -596,7 +596,7 @@ function classifyBlock(
 
 const BLOCK_TAGS = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'pre', 'blockquote']);
 
-function collectParas(root: Element, dict: StyleDict): ParaInfo[] {
+function collectParas(root: Element, dict: StyleDict, fixRuns?: (runs: HtmlRun[], nodeType: string) => void): ParaInfo[] {
   const paras: ParaInfo[] = [];
   const visit = (el: Element): void => {
     if (skipElement(el)) return;
@@ -610,6 +610,7 @@ function collectParas(root: Element, dict: StyleDict): ParaInfo[] {
       if (nodeType === 'paragraph' || nodeType === 'undertag') {
         applyCiteVisualRule(runs);
       }
+      fixRuns?.(runs, nodeType);
       const style = el.getAttribute('style') ?? '';
       const num = readMsoList(style);
       const para: ParaInfo = {
@@ -690,6 +691,50 @@ function convertViaImporter(html: string): PMNode | null {
  */
 export function convertWordHtml(html: string): PMNode | null {
   return convertViaImporter(html);
+}
+
+/**
+ * Convert Google Docs clipboard HTML. Docs writes every run as a span
+ * with inline styles (`font-weight:700`, `text-decoration:underline`,
+ * `background-color:#ffff00`, `font-size:13pt`) inside a
+ * `<b style="font-weight:normal" id="docs-internal-guid-…">` wrapper,
+ * which is the visual-rules path of the shared pipeline. Two
+ * differences from Word/haku:
+ *  - Docs can't draw the Emphasis box, so debaters cut emphasis as bold
+ *    + underline; in body text that pair becomes the Emphasis style.
+ *  - Unlike the other dialects there's no fallback worth falling to:
+ *    the default paste drops Docs' inline styles entirely. So a copy
+ *    with no debate structure (a few underlined, highlighted lines from
+ *    a card body) still converts, as plain paragraphs carrying their
+ *    marks, and a copy from inside one paragraph (spans with no `<p>`)
+ *    becomes one paragraph.
+ */
+export function convertGoogleDocsHtml(html: string): PMNode | null {
+  const dom = new DOMParser().parseFromString(html, 'text/html');
+  const dict = parseStyleDict(dom);
+  const docsEmphasis = (runs: HtmlRun[], nodeType = 'paragraph'): void => {
+    const body = nodeType === 'paragraph' || nodeType === 'undertag';
+    for (const r of runs) {
+      // Docs writes font-weight:700 on every heading run; the heading
+      // style is bold already, so a direct bold mark would be noise.
+      if (!body) {
+        if (r.rs.bold === true) r.rs = { ...r.rs, bold: null };
+        continue;
+      }
+      if (r.rs.bold === true && r.rs.underline && r.rs.charMark === null) {
+        r.rs = { ...r.rs, charMark: 'emphasis_mark', bold: null, underline: false };
+      }
+    }
+  };
+  let paras = trimEdgeEmpties(collectParas(dom.body, dict, docsEmphasis));
+  if (!paras.length) {
+    const runs = collectRuns(dom.body, dict);
+    if (!runs.some((r) => r.text.trim())) return null;
+    applyCiteVisualRule(runs);
+    docsEmphasis(runs);
+    paras = [{ nodeType: 'paragraph', inlines: runsToInlines(runs, 'paragraph'), headingId: null, pStyle: 'p', indent: 0, spacing: null }];
+  }
+  return fixGapsInConvertedDoc(normalizeUnderlineMarks(assembleDoc(paras)));
 }
 
 /**

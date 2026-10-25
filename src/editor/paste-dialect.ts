@@ -13,9 +13,8 @@
  *
  *  1. CardMirror's own clipboard (pmd-* classes) → null. The schema's
  *     parse rules already understand it.
- *  2. Google Docs (docs-internal-guid) → null. Debaters cut in Docs
- *     too, and its inline-styled output superficially resembles
- *     haku's; explicit excluder until a Docs dialect exists.
+ *  2. Google Docs (docs-internal-guid) → 'gdocs'. Checked before haku
+ *     because its inline-styled output superficially resembles haku's.
  *  3. Word: Word writes a full HTML *document* to the clipboard —
  *     `<meta name=Generator content="Microsoft Word …">`,
  *     `<meta name=ProgId content=Word.Document>`, and the
@@ -37,12 +36,12 @@
  *     random Calibri-and-underlines page does not.
  */
 
-export type PasteDialect = 'word' | 'haku';
+export type PasteDialect = 'word' | 'haku' | 'gdocs';
 
 export function detectPasteDialect(html: string | null | undefined): PasteDialect | null {
   if (!html || !/\S/.test(html)) return null;
   if (isCardMirrorHtml(html)) return null;
-  if (isGoogleDocsHtml(html)) return null;
+  if (isGoogleDocsHtml(html)) return 'gdocs';
   if (isWordShellHtml(html)) return 'word';
   if (isHakuHtml(html)) return 'haku';
   return null;

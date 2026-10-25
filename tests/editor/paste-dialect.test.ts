@@ -60,8 +60,8 @@ describe('detectPasteDialect routing', () => {
     expect(detectPasteDialect(PLAIN_WEB)).toBeNull();
   });
 
-  it('never converts Google Docs copies (explicit excluder)', () => {
-    expect(detectPasteDialect(GOOGLE_DOCS)).toBeNull();
+  it('routes Google Docs copies to the Docs converter', () => {
+    expect(detectPasteDialect(GOOGLE_DOCS)).toBe('gdocs');
   });
 
   it('CMS-laundered Word remnants (Mso classes, mso-* inline props, no shell) do not match', () => {

@@ -60,7 +60,7 @@ import { fragmentHasZone, flattenZonesInSlice, enclosingZonePos } from './transc
 import { recallLinkedCopy } from './clipboard-link-cache.js';
 import { detectPasteDialect } from './paste-dialect.js';
 import { surfaceError } from './error-surface.js';
-import { convertWordHtml, convertHakuHtml } from '../import/html-paste.js';
+import { convertWordHtml, convertHakuHtml, convertGoogleDocsHtml } from '../import/html-paste.js';
 import {
   FOLDABLE_SPACES_RE,
   STRIPPABLE_INVISIBLES_RE,
@@ -619,7 +619,9 @@ export function buildPastePlugin(ctx: PastePluginCtx): Plugin<PluginState> {
               ? convertWordHtml(html)
               : dialect === 'haku'
                 ? convertHakuHtml(html)
-                : null;
+                : dialect === 'gdocs'
+                  ? convertGoogleDocsHtml(html)
+                  : null;
           if (converted && converted.content.size) {
             event.preventDefault();
             const convSlice = new Slice(converted.content, 0, 0);
