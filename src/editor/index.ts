@@ -4212,14 +4212,24 @@ function initRibbonResizer(): void {
   // Hide order from "least essential" to "most essential".
   // Each entry is the set of element IDs to hide/show together.
   // Adding a new group? Just append to this list.
+  //
+  // Cooky: the structural styles (Pocket / Hat / Block / Tag) stay
+  // visible on laptop-width windows — debaters cut with them. The Cooky
+  // group's Underline / Emphasis / Highlight / Clear duplicate the
+  // character-style and color panels, so they give up their room first,
+  // and the rarely-used clusters go before either style panel.
   const panelIds: string[][] = [
-    ['cite-panel'],              // (a) Character styles
-    ['formatting-panel'],        // (b) Structural styles
-    ['numbering-panel'],         // (c) Card numbering cluster — hide THIRD
-    ['custom-ribbon-panel'],     // (d) User custom buttons
-    ['doc-name-chip'],           // (d) Active-doc filename pill (opt-in)
+    ['lb-underline-btn',         // (a) Cooky's duplicate formatting buttons
+     'lb-emphasis-btn',
+     'lb-highlight-btn',
+     'lb-clear-btn'],
+    ['custom-ribbon-panel'],     // (b) User custom buttons
+    ['doc-name-chip'],           // (b) Active-doc filename pill (opt-in)
+    ['numbering-panel'],         // (c) Card numbering cluster
     ['format-menu-panel'],       // (d) Table / image / sub / sup / strike
     ['doc-ops-panel'],           // (e) Paragraph integrity
+    ['cite-panel'],              // (f) Character styles
+    ['formatting-panel'],        // (g) Structural styles
     ['font-size-up-btn',         // (f) Font-size step buttons
      'font-size-down-btn'],
     ['color-panel'],             // (g) Highlight / shading / font color
