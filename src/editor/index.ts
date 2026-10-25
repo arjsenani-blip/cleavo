@@ -4305,24 +4305,52 @@ function initRibbonResizer(): void {
     }
     return rightLeft - leftRight - centerWidth < overflowBuffer;
   };
+  // Cooky: every computer gets the same ribbon. When the window is too
+  // narrow for it, the whole ribbon scales down (CSS zoom on its three
+  // sections) rather than dropping buttons, so a 13" laptop shows exactly
+  // what a big display does, just smaller. Only below MIN_RIBBON_SCALE —
+  // a window too narrow to click scaled buttons comfortably — does the
+  // panel hiding above kick in, as before.
+  const MIN_RIBBON_SCALE = 0.6;
+  const sections = [leftSection, centerSection, rightSection].filter((x): x is HTMLElement => !!x);
+  const setScale = (z: number): void => {
+    for (const el of sections) el.style.zoom = z === 1 ? '' : String(z);
+  };
+  /** Free room at the current scale (negative = overflowing by that much). */
+  const freeRoom = (): number => {
+    if (!leftSection || !rightSection) return ribbon.clientWidth - ribbon.scrollWidth;
+    let centerWidth = 0;
+    if (centerSection) {
+      for (const child of Array.from(centerSection.children)) {
+        centerWidth += (child as HTMLElement).getBoundingClientRect().width;
+      }
+    }
+    return rightSection.getBoundingClientRect().left - leftSection.getBoundingClientRect().right - centerWidth - overflowBuffer;
+  };
   let reflowing = false;
   function reflow(): void {
     if (reflowing) return;
     reflowing = true;
     try {
-      // Hide more panels until the ribbon fits.
+      // Measure the full ribbon at natural size.
+      setScale(1);
+      while (hideCount > 0) setVisible(--hideCount, true);
+      const free = freeRoom();
+      if (free >= 0) return;
+      const used = sections.reduce((w, el) => w + el.getBoundingClientRect().width, 0);
+      let scale = Math.max(MIN_RIBBON_SCALE, Math.floor(((used + free) / used) * 100) / 100);
+      setScale(scale);
+      // Rounding and fixed-size bits (borders, gaps) can leave a pixel
+      // or two over; step down until it truly fits.
+      while (scale > MIN_RIBBON_SCALE && isOverflowing()) {
+        scale = Math.max(MIN_RIBBON_SCALE, scale - 0.02);
+        setScale(scale);
+      }
+      // Narrower than even the smallest scale: hide the least-essential
+      // panels until it fits.
       while (hideCount < panelIds.length && isOverflowing()) {
         setVisible(hideCount, false);
         hideCount++;
-      }
-      // Try to bring panels back when there's room.
-      while (hideCount > 0) {
-        setVisible(hideCount - 1, true);
-        if (isOverflowing()) {
-          setVisible(hideCount - 1, false);
-          break;
-        }
-        hideCount--;
       }
     } finally {
       reflowing = false;
