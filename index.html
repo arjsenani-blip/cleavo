@@ -72,7 +72,8 @@
         <div id="file-stack" class="ribbon-button-stack">
           <button id="open-btn" type="button" title="Open a document" aria-label="Open"><span class="pmd-icon pmd-icon-open" aria-hidden="true"></span></button>
           <button id="new-btn" type="button" title="New document" aria-label="New document"><span class="pmd-icon pmd-icon-new" aria-hidden="true"></span></button>
-          <button id="export-btn" type="button" disabled title="Save" aria-label="Save"><span class="pmd-icon pmd-icon-save" aria-hidden="true"></span></button>
+          <!-- Cooky: Save lives in the Cooky panel (one Save button). -->
+          <button id="export-btn" type="button" disabled hidden style="display:none" title="Save" aria-label="Save"><span class="pmd-icon pmd-icon-save" aria-hidden="true"></span></button>
           <button id="autosave-btn" type="button" aria-pressed="false"
                   title="Autosave is off — click to turn on" aria-label="Toggle autosave"><span class="pmd-icon pmd-icon-autosave" aria-hidden="true"></span></button>
         </div>
@@ -249,8 +250,8 @@
                   title="Evidence Search on OpenCaselist (⌘⌥⇧E)">Evidence</button>
           <button id="lb-mode-btn" class="lb-ribbon-btn" type="button" data-lb-command="toggleCaseMode"
                   aria-pressed="false" title="Switch Case / Block mode (⌘⌥⇧M)">Block mode</button>
-          <button class="lb-ribbon-btn" type="button" data-lb-command="saveToDownloads"
-                  title="Save a .docx to Downloads (⌘⌥⇧S)">Save .docx</button>
+          <button id="lb-save-btn" class="lb-ribbon-btn" type="button" data-lb-command="save"
+                  title="Save (⌘S) — a new document asks for a name, then saves a .docx into Documents/Cooky">Save</button>
           <button class="lb-ribbon-btn" type="button" data-lb-command="shrink"
                   title="Shrink the card's plain text — select a whole card to shrink only unhighlighted, unformatted text (⌘8)">Shrink</button>
           <button id="lb-underline-btn" class="lb-ribbon-btn" type="button" data-lb-command="applyUnderline"

@@ -1025,9 +1025,55 @@ ipcMain.on('host:grant-dropped-path', (_event, p: unknown) => {
 ipcMain.handle('host:grant-legacy-recents', async (_event, paths: unknown) =>
   grantLegacyRecents(Array.isArray(paths) ? paths.map(String) : []),
 );
-ipcMain.handle('host:read-file-at-path', async (_event, filePath: string) => {
-  if (typeof filePath !== 'string' || !filePath) return null;
-  if (!(await isReadAllowed(filePath))) return null;
+/** A recent file that's no longer at its path was usually just moved
+ *  into a subfolder beside it (a Downloads organizer sorting `.docx`
+ *  into `Downloads/debate` is the field case) or dragged between
+ *  Documents / Downloads / Desktop. Look up to two folders down from its
+ *  old folder and from those three for the same file name; the newest
+ *  wins. */
+async function findMovedCopy(filePath: string): Promise<string | null> {
+  const want = path.basename(filePath).toLowerCase();
+  let best: { p: string; mtimeMs: number } | null = null;
+  const scan = async (dir: string, depth: number): Promise<void> => {
+    let entries: import('node:fs').Dirent[];
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries.slice(0, 2000)) {
+      const p = path.join(dir, e.name);
+      if (e.isFile() && depth > 0 && e.name.toLowerCase() === want) {
+        try {
+          const st = await fs.stat(p);
+          if (!best || st.mtimeMs > best.mtimeMs) best = { p, mtimeMs: st.mtimeMs };
+        } catch {
+          /* raced away */
+        }
+      } else if (e.isDirectory() && depth < 2 && !e.name.startsWith('.')) {
+        await scan(p, depth + 1);
+      }
+    }
+  };
+  const homes = (['downloads', 'documents', 'desktop'] as const).map((k) => app.getPath(k));
+  for (const dir of new Set([path.dirname(filePath), ...homes])) {
+    // depth 0 skips the old folder's own files; for the other folders the
+    // top level is a real "moved here" place, so start them one level in.
+    await scan(dir, dir === path.dirname(filePath) ? 0 : 1);
+  }
+  return (best as { p: string } | null)?.p ?? null;
+}
+
+ipcMain.handle('host:read-file-at-path', async (_event, requestedPath: string) => {
+  if (typeof requestedPath !== 'string' || !requestedPath) return null;
+  if (!(await isReadAllowed(requestedPath))) return null;
+  let filePath = requestedPath;
+  if (!existsSync(filePath)) {
+    const moved = await findMovedCopy(filePath);
+    if (!moved) return null;
+    filePath = moved;
+    grantReadPath(filePath); // same file the user saved, just moved
+  }
   try {
     const bytes = await readDocumentBytes(filePath);
     const ext = path.extname(filePath).toLowerCase();
@@ -1532,14 +1578,14 @@ ipcMain.handle(
   },
 );
 
-/** One-click "Save to Downloads": write a new file into the user's
- *  Downloads folder, never overwriting — a taken name gets " (2)",
- *  " (3)", … like a browser download. */
-ipcMain.handle('host:save-to-downloads', async (_event, filename: unknown, bytes: unknown) => {
+/** First save of a new doc: write it into ~/Documents/Cooky (not
+ *  Downloads — a Downloads organizer moves files out from under their
+ *  recents path), never overwriting — a taken name gets " (2)", … */
+ipcMain.handle('host:save-new-doc', async (_event, filename: unknown, bytes: unknown) => {
   if (typeof filename !== 'string' || filename.length === 0) {
-    throw new Error('host:save-to-downloads: filename must be a non-empty string.');
+    throw new Error('host:save-new-doc: filename must be a non-empty string.');
   }
-  const dir = app.getPath('downloads');
+  const dir = path.join(app.getPath('documents'), 'Cooky');
   const safe = path.basename(filename).replace(/[\\/:*?"<>|]/g, '-');
   const ext = path.extname(safe);
   const stem = safe.slice(0, safe.length - ext.length) || 'Untitled';
@@ -1554,7 +1600,7 @@ ipcMain.handle('host:save-to-downloads', async (_event, filename: unknown, bytes
       if (!(err instanceof DocExistsError)) throw err;
     }
   }
-  throw new Error('Downloads already has 999 copies of this file name.');
+  throw new Error('Documents/Cooky already has 999 copies of this file name.');
 });
 
 ipcMain.handle(

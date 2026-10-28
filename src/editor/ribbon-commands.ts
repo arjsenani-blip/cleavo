@@ -4802,7 +4802,6 @@ export type RibbonCommandId =
   | 'save'
   | 'saveAs'
   | 'saveSendDoc'
-  | 'saveToDownloads'
   | 'saveReadDoc'
   | 'saveMarkedCards'
   | 'toggleAutosave'
@@ -5077,7 +5076,6 @@ export const RIBBON_COMMAND_IDS: RibbonCommandId[] = [
   'saveAs',
   'saveSendDoc',
   'saveReadDoc',
-  'saveToDownloads',
   'saveMarkedCards',
   'toggleAutosave',
   'newSpeechDocument',
@@ -5295,7 +5293,6 @@ export const RIBBON_COMMAND_LABELS: Record<RibbonCommandId, string> = {
   save: 'Save',
   saveAs: 'Save As…',
   saveSendDoc: 'Save Send Doc',
-  saveToDownloads: 'Save to Downloads (.docx)',
   saveReadDoc: 'Save Read Doc',
   saveMarkedCards: 'Save Marked Cards',
   toggleAutosave: 'Toggle Autosave',
@@ -5563,7 +5560,6 @@ export const RIBBON_COMMAND_ALIASES: Partial<Record<RibbonCommandId, readonly st
   openEvidenceSearch: ['caselist','opencaselist','wiki','evidence','search evidence','find cards','research agent'],
   toggleCaseMode: ['case mode','block mode','case cutting','argument map','cutting mode'],
   analyzeArguments: ['argument map','analyze case','uniqueness','link','impact','missing evidence','case analysis'],
-  saveToDownloads: ['downloads', 'save docx', 'export docx', 'download', 'save to computer', 'word file'],
   saveReadDoc: ['read doc', 'export read doc', 'read version', 'save read'],
   saveMarkedCards: ['marked cards', 'extract marked cards', 'export marked cards', 'save marked'],
   startFlowHost: ['warm flow', 'prewarm flow', 'flow connection', 'connect to flow', 'speed up flow'],
@@ -5720,7 +5716,6 @@ export const DEFAULT_RIBBON_KEYS: Record<RibbonCommandId, string | string[]> = {
   save: 'Mod-s',
   saveAs: 'Mod-Shift-s',
   saveSendDoc: 'Mod-Alt-s',
-  saveToDownloads: 'Mod-Alt-Shift-s',
   saveReadDoc: '',
   saveMarkedCards: 'Mod-Alt-m',
   toggleAutosave: '',
@@ -6000,8 +5995,6 @@ export interface RibbonContext {
   save: () => void;
   saveAs: () => void;
   saveSendDoc: () => void;
-  /** Write a .docx of the doc straight into ~/Downloads, no dialog. */
-  saveToDownloads: () => void;
   saveReadDoc: () => void;
   saveMarkedCards: () => void;
   toggleAutosave: () => void;
@@ -6212,7 +6205,6 @@ const DEFAULT_RIBBON_CONTEXT: RibbonContext = {
   save: () => {},
   saveAs: () => {},
   saveSendDoc: () => {},
-  saveToDownloads: () => {},
   saveReadDoc: () => {},
   saveMarkedCards: () => {},
   toggleAutosave: () => {},
@@ -6751,12 +6743,6 @@ function commandFor(id: RibbonCommandId, ctx: RibbonContext): Command {
       return (_state, dispatch) => {
         if (!dispatch) return true;
         ctx.saveSendDoc();
-        return true;
-      };
-    case 'saveToDownloads':
-      return (_state, dispatch) => {
-        if (!dispatch) return true;
-        ctx.saveToDownloads();
         return true;
       };
     case 'saveReadDoc':

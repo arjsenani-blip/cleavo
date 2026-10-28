@@ -314,7 +314,7 @@ interface ElectronAPI {
     opts: { folder: string | null; siblingHandle: string | null; filename: string },
     bytes: Uint8Array,
   ): Promise<{ name: string; handle: string } | 'collision' | null>;
-  saveToDownloads?(filename: string, bytes: Uint8Array): Promise<{ name: string; handle: string }>;
+  saveNewDoc?(filename: string, bytes: Uint8Array): Promise<{ name: string; handle: string }>;
   claimLaunchSplash?(): Promise<boolean>;
   researchFetchPage?(url: string): Promise<ResearchResult<{ url: string; html: string }>>;
   researchRenderPage?(
@@ -964,13 +964,14 @@ export class ElectronHost implements Host {
     return api().saveSendDoc(opts, bytes);
   }
 
-  /** Write straight into ~/Downloads with a unique name. `null` on an
-   *  older preload without the handler (caller falls back to Save As). */
-  async saveToDownloads(
+  /** First save of a new doc into ~/Documents/Cooky with a unique name.
+   *  `null` on an older preload without the handler (caller falls back
+   *  to Save As). */
+  async saveNewDoc(
     filename: string,
     bytes: Uint8Array,
   ): Promise<{ name: string; handle: string } | null> {
-    return (await api().saveToDownloads?.(filename, bytes)) ?? null;
+    return (await api().saveNewDoc?.(filename, bytes)) ?? null;
   }
 
   async listFilesRecursive(dir: string, ext: string): Promise<Array<{ path: string; relPath: string }>> {

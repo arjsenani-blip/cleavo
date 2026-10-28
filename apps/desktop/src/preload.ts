@@ -329,9 +329,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /** True only for the first window of this launch (startup splash). */
   claimLaunchSplash: () => ipcRenderer.invoke('host:claim-launch-splash') as Promise<boolean>,
 
-  /** One-click write into the Downloads folder (never overwrites). */
-  saveToDownloads: (filename: string, bytes: Uint8Array) =>
-    ipcRenderer.invoke('host:save-to-downloads', filename, bytes) as Promise<{
+  /** First save of a new doc into ~/Documents/Cooky (never overwrites). */
+  saveNewDoc: (filename: string, bytes: Uint8Array) =>
+    ipcRenderer.invoke('host:save-new-doc', filename, bytes) as Promise<{
       name: string;
       handle: string;
     }>,

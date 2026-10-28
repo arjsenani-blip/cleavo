@@ -2131,9 +2131,6 @@ const ribbonContext: RibbonContext = {
   saveSendDoc: () => {
     void runSaveSendDocFlow();
   },
-  saveToDownloads: () => {
-    void runSaveToDownloadsFlow();
-  },
   saveReadDoc: () => {
     void runSaveReadDocFlow();
   },
@@ -4608,7 +4605,6 @@ const VIEWLESS_RIBBON_COMMANDS = new Set<AnyCommandId>([
   'resetDefaultColors',
   'openFile',
   'saveAs',
-  'saveToDownloads',
   'openEvidenceSearch',
   'toggleCaseMode',
   'openShortcutsReference',
@@ -4676,7 +4672,6 @@ function runViewlessRibbon(id: AnyCommandId): void {
     case 'openFile': ribbonContext.openFile(); return;
     case 'save': ribbonContext.save(); return;
     case 'saveAs': ribbonContext.saveAs(); return;
-    case 'saveToDownloads': ribbonContext.saveToDownloads(); return;
     case 'openEvidenceSearch': ribbonContext.openEvidenceSearch(); return;
     case 'toggleCaseMode': ribbonContext.toggleCaseMode(); return;
     case 'toggleAutosave': ribbonContext.toggleAutosave(); return;
@@ -5467,7 +5462,7 @@ function makeStarterDoc(): PMNode {
     paraIndented('Create PF Cite (Mod-Alt-X): paste an article link and get the full NSDA cite — author, qualifications, date, title, publication, link, date accessed — signed with your signature, with an empty tag line above it for your tag.'),
     paraIndented('Evidence Search (Mod-Alt-Shift-E): search OpenCaselist in plain words and insert cards as they were cut.'),
     paraIndented('Case mode (Mod-Alt-Shift-M): every card glows by its role — cyan uniqueness, gold link, orange internal link, red impact — and missing pieces appear as empty pink boxes with Find evidence.'),
-    paraIndented('Save to Downloads (Mod-Alt-Shift-S): a .docx copy straight into your Downloads folder.'),
+    paraIndented('Save (Mod-S): one button. A new document asks for a name, then saves a .docx into Documents/Cooky.'),
     paraIndented('Shrink (Mod-8) now keeps highlighted and formatted text full size, like Verbatim.'),
     blank(),
     paraText(
@@ -7913,6 +7908,9 @@ async function openRecentInPlace(recent: RecentFile): Promise<void> {
     removeRecent(recent.handle);
     return;
   }
+  // Found where it was moved to (host looks in nearby folders) — drop
+  // the stale entry; opening records the new path.
+  if (file.handle !== recent.handle) removeRecent(recent.handle);
   // Genuinely-empty file (stat size 0): open blank instead of erroring —
   // same substitution resolveOpenedFile does for the Open-dialog path;
   // this path bypasses it, so substitute once here for all three exits.
@@ -8366,39 +8364,51 @@ async function confirmDocxDropsLiveLinks(): Promise<boolean> {
  *  where an escaped rejection silently aborts the close (field bug
  *  2026-07-12: "click Save As → nothing happens"). A crash anywhere in the
  *  flow now surfaces as an explicit dialog and reads as a failed save. */
-/** One-click "Save to Downloads": a full-fidelity .docx of the active
- *  doc, written into ~/Downloads under the doc's name (a taken name gets
- *  " (2)"). A copy, like Save Send Doc: the working doc keeps its own
- *  file, name and dirty state. Off desktop, the browser download lands in Downloads the same way. */
-export async function runSaveToDownloadsFlow(): Promise<boolean> {
-  try {
-    if (!(await confirmDocxDropsLiveLinks())) return false;
-    const file = activeFile();
-    const filename = `${basenameWithoutExt(file.filename ?? 'Untitled')}.docx`;
-    const bytes = await serializeForSave('docx', {
-      includeComments: true,
-      includeAnalytics: true,
-      includeUndertags: true,
-      readMode: false,
-    });
-    const electron = getElectronHost();
-    const result = electron
-      ? await electron.saveToDownloads(filename, bytes)
-      : await getHost().saveAs(filename, bytes, { filters: saveFiltersForFormat('docx') });
-    if (!result) return false;
-    recordRecent({
-      handle: typeof result.handle === 'string' ? result.handle : null,
-      filename: result.name,
-      format: 'docx',
-    });
-    flashSaveSuccess();
-    showToast(`Saved ${result.name} to Downloads`, { durationMs: 3000 });
-    return true;
-  } catch (err) {
-    console.error('Save to Downloads failed:', err);
-    void alertDialog(`Save to Downloads failed: ${err instanceof Error ? err.message : err}`);
-    return false;
-  }
+/** First save of a never-saved doc on desktop: ask for a name (the
+ *  doc's own name pre-filled unless it's still "Untitled"), then write a
+ *  full-fidelity .docx into ~/Documents/Cooky and adopt it as the
+ *  working file, so later saves go in place and recents can reopen it.
+ *  Returns null when this host can't (caller falls back to Save As). */
+async function runFirstSaveFlow(): Promise<boolean | null> {
+  const electron = getElectronHost();
+  if (!electron) return null;
+  const file = activeFile();
+  const current = basenameWithoutExt(file.filename ?? '');
+  const typed = await promptForText({
+    message: 'Name this file',
+    initial: /^untitled( document)?( \(\d+\))?$/i.test(current) ? '' : current,
+    placeholder: 'e.g. 1AC Data Centers',
+    okLabel: 'Save',
+    detail: 'Saved as a .docx in Documents/Cooky.',
+  });
+  if (typed == null) return false;
+  const stem = basenameWithoutExt(typed.trim()) || 'Untitled';
+  if (!(await confirmDocxDropsLiveLinks())) return false;
+  const forkDocId = crypto.randomUUID();
+  const commitClean = captureActiveDocCleanToken();
+  const filename = `${stem}.docx`;
+  const bytes = await warnIfSlow(
+    serializeForSave(
+      'docx',
+      { includeComments: true, includeAnalytics: true, includeUndertags: true, readMode: false },
+      forkDocId,
+    ),
+    filename,
+  );
+  const result = await electron.saveNewDoc(filename, bytes);
+  if (!result) return null;
+  // Never-saved doc: its annotations MOVE to the new file (same as a
+  // full Save As with no on-disk original).
+  const { docId: srcDocId, sessionUid } = activeDocIdentity();
+  commitSaveResult(result.name, result.handle, 'docx');
+  learnStore.rekeyDoc(srcDocId ?? sessionUid, forkDocId);
+  setActiveDocId(forkDocId);
+  learnStore.registerDoc({ docId: forkDocId, path: result.handle, name: result.name, format: 'docx' });
+  commitClean();
+  flashSaveSuccess();
+  markNonPristineStarter();
+  showToast(`Saved ${result.name} to Documents/Cooky`, { durationMs: 3000 });
+  return true;
 }
 
 export async function runSaveAsFlow(): Promise<boolean> {
@@ -8980,6 +8990,10 @@ function ensureDiskBadge(): void {
 
 async function runSaveFlowInner(): Promise<boolean> {
   const file = activeFile();
+  if (!file.handle) {
+    const saved = await runFirstSaveFlow();
+    if (saved !== null) return saved;
+  }
   if (!file.handle || !file.format || !getHost().supportsInPlaceSave) {
     return runSaveAsFlow();
   }
@@ -9198,6 +9212,8 @@ function flashSavedGlyph(el: HTMLElement): void {
  *  consulted in addition to the single-doc transient setting. */
 function flashSaveSuccess(): void {
   flashSavedGlyph(exportBtn);
+  const lbSaveBtn = document.getElementById('lb-save-btn');
+  if (lbSaveBtn) flashSavedGlyph(lbSaveBtn);
   if (autosaveBtn && autosaveStateForActive()) {
     flashSavedGlyph(autosaveBtn);
   }
