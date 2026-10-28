@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="./cooky-icon.png" alt="Cooky" width="160" />
+  <img src="./cleavo-icon.png" alt="Cleavo" width="160" />
 </p>
 
-# Cooky
+# Cleavo
 
-**Cooky** is a debate editor for Public Forum, built on
+**Cleavo** is a debate editor for Public Forum, built on
 [CardMirror](https://github.com/ant981228/cardmirror) 1.15.0. It reads and
 writes the same Verbatim `.docx` files and adds:
 
@@ -18,9 +18,9 @@ writes the same Verbatim `.docx` files and adds:
 - **Verbatim-style Shrink**, one-click **Save to Downloads**, a centered
   page view, and an Arc-inspired interface with your own accent color.
 
-See [COOKY.md](./COOKY.md) for the full feature list and build steps.
+See [CLEAVO.md](./CLEAVO.md) for the full feature list and build steps.
 
-> Cooky is a modified version of CardMirror, distributed for noncommercial
+> Cleavo is a modified version of CardMirror, distributed for noncommercial
 > use under the same [PolyForm Noncommercial License 1.0.0](./LICENSE).
 > Required Notice: Copyright (c) 2026 Anthony Trufanov.
 

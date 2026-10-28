@@ -763,7 +763,7 @@ async function gatherMeta(url: string): Promise<{ meta: PageMeta; quals: string[
       const go = await showConfirm({
         title: 'This site checks for robots',
         message:
-          'Cooky can’t read this article in the background. Open it in a reader window? Get past the site’s check there, and Cooky reads the page and closes the window.',
+          'Cleavo can’t read this article in the background. Open it in a reader window? Get past the site’s check there, and Cleavo reads the page and closes the window.',
         confirmLabel: 'Open reader',
         cancelLabel: 'Cite from the link alone',
       });
@@ -851,7 +851,7 @@ export async function runPfCreateCite(view: EditorView): Promise<void> {
       message: 'Paste the article link',
       placeholder: 'https://…',
       okLabel: 'Create cite',
-      detail: 'Cooky reads the page and writes the full cite — author, qualifications, date, title, publication, link and date accessed.',
+      detail: 'Cleavo reads the page and writes the full cite — author, qualifications, date, title, publication, link and date accessed.',
     });
     if (!typed) return;
     url = findUrl(typed) ?? (findUrl(`https://${typed.trim()}`) as string | null);

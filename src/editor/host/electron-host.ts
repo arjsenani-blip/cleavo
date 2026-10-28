@@ -964,7 +964,7 @@ export class ElectronHost implements Host {
     return api().saveSendDoc(opts, bytes);
   }
 
-  /** First save of a new doc into ~/Documents/Cooky with a unique name.
+  /** First save of a new doc into ~/Documents/Cleavo with a unique name.
    *  `null` on an older preload without the handler (caller falls back
    *  to Save As). */
   async saveNewDoc(

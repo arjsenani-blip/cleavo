@@ -424,7 +424,7 @@ wireStatusNotices();
 setupAccent();
 // Startup intro, then (first launch) the welcome card.
 void playStartupSplash().then(maybeShowWelcome);
-// Cooky right dock: argument map + evidence search.
+// Cleavo right dock: argument map + evidence search.
 setupDock(() => view);
 for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-lb-command]')) {
   btn.addEventListener('mousedown', (e) => e.preventDefault()); // keep the editor's selection
@@ -4210,13 +4210,13 @@ function initRibbonResizer(): void {
   // Each entry is the set of element IDs to hide/show together.
   // Adding a new group? Just append to this list.
   //
-  // Cooky: the structural styles (Pocket / Hat / Block / Tag) stay
-  // visible on laptop-width windows — debaters cut with them. The Cooky
+  // Cleavo: the structural styles (Pocket / Hat / Block / Tag) stay
+  // visible on laptop-width windows — debaters cut with them. The Cleavo
   // group's Underline / Emphasis / Highlight / Clear duplicate the
   // character-style and color panels, so they give up their room first,
   // and the rarely-used clusters go before either style panel.
   const panelIds: string[][] = [
-    ['lb-underline-btn',         // (a) Cooky's duplicate formatting buttons
+    ['lb-underline-btn',         // (a) Cleavo's duplicate formatting buttons
      'lb-emphasis-btn',
      'lb-highlight-btn',
      'lb-clear-btn'],
@@ -4302,7 +4302,7 @@ function initRibbonResizer(): void {
     }
     return rightLeft - leftRight - centerWidth < overflowBuffer;
   };
-  // Cooky: every computer gets the same ribbon. When the window is too
+  // Cleavo: every computer gets the same ribbon. When the window is too
   // narrow for it, the whole ribbon scales down (CSS zoom on its three
   // sections) rather than dropping buttons, so a 13" laptop shows exactly
   // what a big display does, just smaller. Only below MIN_RIBBON_SCALE —
@@ -5453,16 +5453,16 @@ function makeStarterDoc(): PMNode {
   const blank = () => n['paragraph']!.create(null);
 
   return n['doc']!.createChecked(null, [
-    n['pocket']!.create({ id: newHeadingId() }, schema.text('Welcome to Cooky')),
+    n['pocket']!.create({ id: newHeadingId() }, schema.text('Welcome to Cleavo')),
     paraText(
-      'Cooky is an editor for debate evidence, built on CardMirror, that reads and writes the same Word .docx files as Verbatim. The boxed heading above is a Pocket — Verbatim\'s name for a top-level section. Everything below is live: type in it, edit it, and try the shortcuts as you go.',
+      'Cleavo is an editor for debate evidence, built on CardMirror, that reads and writes the same Word .docx files as Verbatim. The boxed heading above is a Pocket — Verbatim\'s name for a top-level section. Everything below is live: type in it, edit it, and try the shortcuts as you go.',
     ),
     blank(),
-    n['hat']!.create({ id: newHeadingId() }, schema.text('What’s new in Cooky')),
+    n['hat']!.create({ id: newHeadingId() }, schema.text('What’s new in Cleavo')),
     paraIndented('Create PF Cite (Mod-Alt-X): paste an article link and get the full NSDA cite — author, qualifications, date, title, publication, link, date accessed — signed with your signature, with an empty tag line above it for your tag.'),
     paraIndented('Evidence Search (Mod-Alt-Shift-E): search OpenCaselist in plain words and insert cards as they were cut.'),
     paraIndented('Case mode (Mod-Alt-Shift-M): every card glows by its role — cyan uniqueness, gold link, orange internal link, red impact — and missing pieces appear as empty pink boxes with Find evidence.'),
-    paraIndented('Save (Mod-S): one button. A new document asks for a name, then saves a .docx into Documents/Cooky.'),
+    paraIndented('Save (Mod-S): one button. A new document asks for a name, then saves a .docx into Documents/Cleavo.'),
     paraIndented('Shrink (Mod-8) now keeps highlighted and formatted text full size, like Verbatim.'),
     blank(),
     paraText(
@@ -5644,7 +5644,7 @@ function makeMobileStarterDoc(): PMNode {
   const blank = () => n['paragraph']!.create(null);
 
   return n['doc']!.createChecked(null, [
-    n['pocket']!.create({ id: newHeadingId() }, schema.text('Welcome to Cooky')),
+    n['pocket']!.create({ id: newHeadingId() }, schema.text('Welcome to Cleavo')),
     paraText(
       'This is the mobile view — a quick way to read, navigate, and lightly edit your debate files. It opens and saves the same Word .docx files as Verbatim and the CardMirror desktop app.',
     ),
@@ -8135,12 +8135,12 @@ function updateWindowTitle(): void {
   if (multiDocActive && multiDocGetAllFilenames) {
     const names = multiDocGetAllFilenames().filter((n): n is string => !!n);
     document.title = names.length > 0
-      ? `${names.join(' · ')} — Cooky`
-      : 'Cooky';
+      ? `${names.join(' · ')} — Cleavo`
+      : 'Cleavo';
   } else {
     document.title = focused.filename
-      ? `${focused.filename} — Cooky`
-      : 'Cooky';
+      ? `${focused.filename} — Cleavo`
+      : 'Cleavo';
   }
   // In-app filename chip. The chip itself is CSS-hidden in
   // multi-pane mode (each per-pane chip shows the pane's own
@@ -8366,7 +8366,7 @@ async function confirmDocxDropsLiveLinks(): Promise<boolean> {
  *  flow now surfaces as an explicit dialog and reads as a failed save. */
 /** First save of a never-saved doc on desktop: ask for a name (the
  *  doc's own name pre-filled unless it's still "Untitled"), then write a
- *  full-fidelity .docx into ~/Documents/Cooky and adopt it as the
+ *  full-fidelity .docx into ~/Documents/Cleavo and adopt it as the
  *  working file, so later saves go in place and recents can reopen it.
  *  Returns null when this host can't (caller falls back to Save As). */
 async function runFirstSaveFlow(): Promise<boolean | null> {
@@ -8379,7 +8379,7 @@ async function runFirstSaveFlow(): Promise<boolean | null> {
     initial: /^untitled( document)?( \(\d+\))?$/i.test(current) ? '' : current,
     placeholder: 'e.g. 1AC Data Centers',
     okLabel: 'Save',
-    detail: 'Saved as a .docx in Documents/Cooky.',
+    detail: 'Saved as a .docx in Documents/Cleavo.',
   });
   if (typed == null) return false;
   const stem = basenameWithoutExt(typed.trim()) || 'Untitled';
@@ -8407,7 +8407,7 @@ async function runFirstSaveFlow(): Promise<boolean | null> {
   commitClean();
   flashSaveSuccess();
   markNonPristineStarter();
-  showToast(`Saved ${result.name} to Documents/Cooky`, { durationMs: 3000 });
+  showToast(`Saved ${result.name} to Documents/Cleavo`, { durationMs: 3000 });
   return true;
 }
 

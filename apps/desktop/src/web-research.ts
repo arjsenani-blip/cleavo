@@ -18,7 +18,7 @@ const CASELIST_API = 'https://api.opencaselist.com/v1';
 const FETCH_TIMEOUT_MS = 20_000;
 const MAX_PAGE_BYTES = 4 * 1024 * 1024;
 const MAX_DOWNLOAD_BYTES = 30 * 1024 * 1024;
-const USER_AGENT = 'Cooky/1.0 (debate research; +https://github.com/ant981228/cardmirror)';
+const USER_AGENT = 'Cleavo/1.0 (debate research; +https://github.com/ant981228/cardmirror)';
 
 export type Result<T> = ({ ok: true } & T) | { ok: false; error: string; status?: number };
 
@@ -93,7 +93,7 @@ function readerSession(): Electron.Session {
     // Never download anything.
     ses.on('will-download', (e) => e.preventDefault());
     // A normal desktop Chrome UA: some sites serve bylines only to browsers.
-    ses.setUserAgent(ses.getUserAgent().replace(/\s?(Electron|Cooky|cooky)\/[\d.]+/g, ''));
+    ses.setUserAgent(ses.getUserAgent().replace(/\s?(Electron|Cleavo|cleavo|Cooky|cooky)\/[\d.]+/g, ''));
     // Hidden reads skip video, audio and web fonts — text is all they need.
     ses.webRequest.onBeforeRequest((details, cb) => {
       const hidden = details.webContentsId !== undefined && hiddenReaders.has(details.webContentsId);
@@ -122,7 +122,7 @@ const VISIBLE_WAIT_MS = 120_000;
 
 export type RenderResult = Result<{ url: string; html: string }> & { blocked?: boolean };
 
-/** Bot checks and challenges ("Just a moment…", captchas). Cooky never
+/** Bot checks and challenges ("Just a moment…", captchas). Cleavo never
  *  tries to get past one by itself: a hidden read reports it, and a
  *  visible read waits for the user to clear it. */
 function looksLikeCheck(title: string, html: string): boolean {
@@ -185,7 +185,7 @@ async function renderPageInner(rawUrl: unknown, opts: { visible?: boolean }): Pr
     show: false,
     width: 1100,
     height: 820,
-    title: 'Cooky reader',
+    title: 'Cleavo reader',
     webPreferences: {
       session: readerSession(),
       sandbox: true,
@@ -227,7 +227,7 @@ async function renderPageInner(rawUrl: unknown, opts: { visible?: boolean }): Pr
     if (looksLikeCheck(page.title, page.html)) {
       if (!visible) return { ok: false, blocked: true, error: 'This site checks for robots before showing the page.' };
       // The user is looking at the check; wait for the real page.
-      win.setTitle('Cooky reader — get past the check and the page will be read automatically');
+      win.setTitle('Cleavo reader — get past the check and the page will be read automatically');
       const deadline = Date.now() + VISIBLE_WAIT_MS;
       while (Date.now() < deadline) {
         await settle(1000);

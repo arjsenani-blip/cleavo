@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Cooky — Arc-style, white & cyan.
+   Cleavo — Arc-style, white & cyan.
 
    The window is a frame: a cool gradient with soft cyan light. The
    toolbar, outline and status bar sit directly on it, borderless. The
@@ -161,7 +161,7 @@
 
 /* ── Tinted-glass controls ────────────────────────────────────────── */
 
-/* One recipe for every Cooky button: a translucent wash, a thin
+/* One recipe for every Cleavo button: a translucent wash, a thin
    inner ring, a soft glow on hover; on/pressed deepens all three. */
 .lb-tinted {
   color: var(--lb-tint-text);
@@ -253,7 +253,7 @@ body.pmd-multi-doc #app {
   border-left-color: var(--lb-hairline);
 }
 
-/* Cooky group: a raised island of tinted chips. */
+/* Cleavo group: a raised island of tinted chips. */
 .lb-ribbon-group {
   flex: 0 0 auto;
   display: grid;

@@ -72,7 +72,7 @@ export interface HomeScreenCallbacks {
    *  layout); omitted → no tile. Until 2026-09-21 the home screen
    *  reached Settings only through the command bar. */
   openSettings?: () => void;
-  /** Cooky launchpad: start a case or a block (new doc in that
+  /** Cleavo launchpad: start a case or a block (new doc in that
    *  cutting mode), cite from a link, or search evidence. Omitted → no
    *  launchpad row. */
   startFlow?: (kind: 'case' | 'block' | 'cite' | 'evidence') => void;

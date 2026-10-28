@@ -1,7 +1,7 @@
 {
   "name": "@cardmirror/desktop",
   "version": "1.15.0",
-  "description": "Cooky — built on CardMirror (Electron desktop wrapper)",
+  "description": "Cleavo — built on CardMirror (Electron desktop wrapper)",
   "author": "Anthony Trufanov",
   "homepage": "https://github.com/ant981228/cardmirror",
   "private": true,
@@ -25,8 +25,8 @@
   },
   "build": {
     "appId": "com.cooky.app",
-    "productName": "Cooky",
-    "executableName": "cooky",
+    "productName": "Cleavo",
+    "executableName": "cleavo",
     "electronVersion": "42.2.0",
     "directories": {
       "output": "release",
@@ -69,8 +69,8 @@
     "fileAssociations": [
       {
         "ext": "cmir",
-        "name": "Cooky Document",
-        "description": "Cooky native document",
+        "name": "Cleavo Document",
+        "description": "Cleavo native document",
         "role": "Editor"
       }
     ],
@@ -92,14 +92,14 @@
       ],
       "extendInfo": {
         "NSAppSleepDisabled": true,
-        "NSMicrophoneUsageDescription": "Cooky uses the microphone for voice control and dictation.",
-        "CFBundleDisplayName": "Cooky"
+        "NSMicrophoneUsageDescription": "Cleavo uses the microphone for voice control and dictation.",
+        "CFBundleDisplayName": "Cleavo"
       },
       "hardenedRuntime": true,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
       "x64ArchFiles": "**/node_modules/@koromix/**",
-      "executableName": "Cooky"
+      "executableName": "Cleavo"
     },
     "win": {
       "target": [
@@ -128,7 +128,7 @@
           ]
         }
       ],
-      "artifactName": "cooky-${version}.${ext}"
+      "artifactName": "cleavo-${version}.${ext}"
     },
     "pacman": {
       "depends": [

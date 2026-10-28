@@ -329,7 +329,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /** True only for the first window of this launch (startup splash). */
   claimLaunchSplash: () => ipcRenderer.invoke('host:claim-launch-splash') as Promise<boolean>,
 
-  /** First save of a new doc into ~/Documents/Cooky (never overwrites). */
+  /** First save of a new doc into ~/Documents/Cleavo (never overwrites). */
   saveNewDoc: (filename: string, bytes: Uint8Array) =>
     ipcRenderer.invoke('host:save-new-doc', filename, bytes) as Promise<{
       name: string;

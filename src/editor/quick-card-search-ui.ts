@@ -749,8 +749,8 @@ const categoryLabel = (id: SettingsCategory): string =>
  *  the app suffix (a home-screen or untitled window is just "CardMirror"). */
 export function windowLabel(w: WindowListEntry): string {
   if (w.docNames.length > 0) return w.docNames.join(' · ');
-  const title = w.title.replace(/\s+—\s+(?:CardMirror|Cooky)$/, '').trim();
-  return title && title !== 'CardMirror' && title !== 'Cooky' ? title : 'Untitled window';
+  const title = w.title.replace(/\s+—\s+(?:CardMirror|Cleavo|Cooky)$/, '').trim();
+  return title && title !== 'CardMirror' && title !== 'Cleavo' && title !== 'Cooky' ? title : 'Untitled window';
 }
 
 /** Window source (`w `) — every OTHER CardMirror window, in the
@@ -1559,7 +1559,7 @@ class QuickCardSearchUI {
     this.results = searchWindowSource(this.windowList, query);
     this.emptyText = this.windowList.some((w) => !w.isOwnWindow)
       ? 'No matching windows.'
-      : 'No other Cooky windows are open.';
+      : 'No other Cleavo windows are open.';
     this.finishSearch();
   }
 

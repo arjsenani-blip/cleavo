@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Cooky — a debate-card editor built on CardMirror: cut, cite, and research evidence, with Verbatim-compatible .docx." />
+    <meta name="description" content="Cleavo — a debate-card editor built on CardMirror: cut, cite, and research evidence, with Verbatim-compatible .docx." />
     <meta name="theme-color" content="#22d3ee" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-    <title>Cooky</title>
+    <title>Cleavo</title>
     <!-- Startup intro gate: decided synchronously, before the first paint,
          so the intro (markup at the top of <body>) is the first thing on
          screen. Desktop plays it in the launch window (?launch=1); the web
@@ -48,7 +48,7 @@
           <div class="lb-orb-field lb-orb-field-b"></div>
           <div class="lb-orb-sheen"></div>
         </div>
-        <div class="lb-intro-word"><span style="--i:0">C</span><span style="--i:1">o</span><span style="--i:2">o</span><span style="--i:3">k</span><span style="--i:4">y</span></div>
+        <div class="lb-intro-word"><span style="--i:0">C</span><span style="--i:1">l</span><span style="--i:2">e</span><span style="--i:3">a</span><span style="--i:4">v</span><span style="--i:5">o</span></div>
         <div class="lb-intro-sub">Cut cards · Write cites · Find evidence</div>
         <div class="lb-intro-by">by arjun</div>
       </div>
@@ -72,7 +72,7 @@
         <div id="file-stack" class="ribbon-button-stack">
           <button id="open-btn" type="button" title="Open a document" aria-label="Open"><span class="pmd-icon pmd-icon-open" aria-hidden="true"></span></button>
           <button id="new-btn" type="button" title="New document" aria-label="New document"><span class="pmd-icon pmd-icon-new" aria-hidden="true"></span></button>
-          <!-- Cooky: Save lives in the Cooky panel (one Save button). -->
+          <!-- Cleavo: Save lives in the Cleavo panel (one Save button). -->
           <button id="export-btn" type="button" disabled hidden style="display:none" title="Save" aria-label="Save"><span class="pmd-icon pmd-icon-save" aria-hidden="true"></span></button>
           <button id="autosave-btn" type="button" aria-pressed="false"
                   title="Autosave is off — click to turn on" aria-label="Toggle autosave"><span class="pmd-icon pmd-icon-autosave" aria-hidden="true"></span></button>
@@ -241,9 +241,9 @@
           <button id="reader-view-btn" class="ribbon-doc-ops-btn" type="button"
                   title="Reading view" aria-label="Reading view"><span class="pmd-icon pmd-icon-book" aria-hidden="true"></span></button>
         </div>
-        <!-- Cooky: the everyday additions, labeled so they're
+        <!-- Cleavo: the everyday additions, labeled so they're
              findable without the shortcuts (4 × 2). -->
-        <div id="lb-ops-panel" class="lb-ribbon-group" role="group" aria-label="Cooky">
+        <div id="lb-ops-panel" class="lb-ribbon-group" role="group" aria-label="Cleavo">
           <button class="lb-ribbon-btn" type="button" data-lb-command="pfCreateCite"
                   title="Create PF Cite — paste an article link (⌘⌥X)">PF Cite</button>
           <button class="lb-ribbon-btn" type="button" data-lb-command="openEvidenceSearch"
@@ -251,7 +251,7 @@
           <button id="lb-mode-btn" class="lb-ribbon-btn" type="button" data-lb-command="toggleCaseMode"
                   aria-pressed="false" title="Switch Case / Block mode (⌘⌥⇧M)">Block mode</button>
           <button id="lb-save-btn" class="lb-ribbon-btn" type="button" data-lb-command="save"
-                  title="Save (⌘S) — a new document asks for a name, then saves a .docx into Documents/Cooky">Save</button>
+                  title="Save (⌘S) — a new document asks for a name, then saves a .docx into Documents/Cleavo">Save</button>
           <button class="lb-ribbon-btn" type="button" data-lb-command="shrink"
                   title="Shrink the card's plain text — select a whole card to shrink only unhighlighted, unformatted text (⌘8)">Shrink</button>
           <button id="lb-underline-btn" class="lb-ribbon-btn" type="button" data-lb-command="applyUnderline"

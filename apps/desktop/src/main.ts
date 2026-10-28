@@ -39,7 +39,7 @@ import { registerVoiceIpc } from './voice/ipc';
 import { registerFlowIpc } from './flow-bridge.js';
 import { isReaderWindow, registerWebResearchIpc } from './web-research.js';
 
-/** Every window except Cooky's background article readers (web-research.ts),
+/** Every window except Cleavo's background article readers (web-research.ts),
  *  which are short-lived, have no editor, and must never take part in
  *  window lists, broadcasts or the quit flow. */
 function editorWindows(): BrowserWindow[] {
@@ -170,8 +170,8 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 // pull the dump from there manually and attach it to a bug report.
 // No telemetry, no remote endpoint, no third-party SDK.
 crashReporter.start({
-  productName: 'Cooky',
-  companyName: 'Cooky',
+  productName: 'Cleavo',
+  companyName: 'Cleavo',
   submitURL: '',
   uploadToServer: false,
 });
@@ -192,9 +192,9 @@ crashReporter.start({
 // local pref read here; the toggle prompts a restart since Chromium reads switches
 // at startup). Fail-safe: any read failure leaves the switch ON (tree disabled).
 // MUST run before `app.whenReady()`.
-// Cooky was first built as "Lucas Brain": carry that install's settings,
-// journals and sessions over the first time Cooky starts, so the rename
-// loses nothing. One-shot: skipped once Cooky has its own folder.
+// Cleavo was first built as "Lucas Brain": carry that install's settings,
+// journals and sessions over the first time Cleavo starts, so the rename
+// loses nothing. One-shot: skipped once Cleavo has its own folder.
 try {
   const ours = app.getPath('userData');
   const legacy = path.join(app.getPath('appData'), 'Lucas Brain');
@@ -455,7 +455,7 @@ function createWindow(initialDoc?: InitialDocPayload): BrowserWindow {
     // degradation from there.
     minWidth: 0,
     minHeight: 0,
-    title: 'Cooky',
+    title: 'Cleavo',
     // Stay hidden until the first frame is painted, so the window never
     // flashes blank or shows the app before the startup intro. The
     // background matches the intro's backdrop for the frame it takes.
@@ -529,9 +529,9 @@ function createWindow(initialDoc?: InitialDocPayload): BrowserWindow {
     recentReloads.push(now);
     if (recentReloads.length > 3) {
       dialog.showErrorBox(
-        'Cooky kept crashing',
+        'Cleavo kept crashing',
         'The editor window crashed several times in a row. Your unsaved work is preserved ' +
-          'in the recovery journal — please quit and reopen Cooky.',
+          'in the recovery journal — please quit and reopen Cleavo.',
       );
       return;
     }
@@ -703,7 +703,7 @@ ipcMain.handle('host:toggle-devtools', (event) => {
  *  In dev (non-packaged) the menu shows a friendly note instead
  *  of running; the renderer path returns `'dev'` so the UI can
  *  do the same. */
-/** Cooky is a personal build of CardMirror: its updates would come
+/** Cleavo is a personal build of CardMirror: its updates would come
  *  from CardMirror's own releases and replace it, so updating is off. */
 const UPDATES_DISABLED = true;
 
@@ -1578,14 +1578,14 @@ ipcMain.handle(
   },
 );
 
-/** First save of a new doc: write it into ~/Documents/Cooky (not
+/** First save of a new doc: write it into ~/Documents/Cleavo (not
  *  Downloads — a Downloads organizer moves files out from under their
  *  recents path), never overwriting — a taken name gets " (2)", … */
 ipcMain.handle('host:save-new-doc', async (_event, filename: unknown, bytes: unknown) => {
   if (typeof filename !== 'string' || filename.length === 0) {
     throw new Error('host:save-new-doc: filename must be a non-empty string.');
   }
-  const dir = path.join(app.getPath('documents'), 'Cooky');
+  const dir = path.join(app.getPath('documents'), 'Cleavo');
   const safe = path.basename(filename).replace(/[\\/:*?"<>|]/g, '-');
   const ext = path.extname(safe);
   const stem = safe.slice(0, safe.length - ext.length) || 'Untitled';
@@ -1600,7 +1600,7 @@ ipcMain.handle('host:save-new-doc', async (_event, filename: unknown, bytes: unk
       if (!(err instanceof DocExistsError)) throw err;
     }
   }
-  throw new Error('Documents/Cooky already has 999 copies of this file name.');
+  throw new Error('Documents/Cleavo already has 999 copies of this file name.');
 });
 
 ipcMain.handle(
@@ -3320,8 +3320,8 @@ function runUpdateCheck(opts: UpdateCheckOpts): void {
       void dialog.showMessageBox(win, {
         type: 'info',
         title: 'Updates',
-        message: 'Cooky updates are installed by rebuilding it.',
-        detail: `Cooky ${app.getVersion()} — built on CardMirror. Copyright (c) 2026 Anthony Trufanov. PolyForm Noncommercial License 1.0.0.`,
+        message: 'Cleavo updates are installed by rebuilding it.',
+        detail: `Cleavo ${app.getVersion()} — built on CardMirror. Copyright (c) 2026 Anthony Trufanov. PolyForm Noncommercial License 1.0.0.`,
       });
     }
     return;
@@ -3536,7 +3536,7 @@ function openTimerWindow(popoutOpts?: TimerPopoutOpts): void {
     skipTaskbar: true,
     alwaysOnTop: true,
     show: false,
-    title: 'Timer — Cooky',
+    title: 'Timer — Cleavo',
     webPreferences: {
       // Minimal dedicated preload: exposes ONLY a resize call (see
       // timer-popout-preload.ts). Everything else the pop-out does

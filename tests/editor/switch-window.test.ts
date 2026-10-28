@@ -178,7 +178,7 @@ describe('Switch Window palette (`w `)', () => {
     await settle();
     expect(rowNames()).toEqual([]);
     expect(document.querySelector('.pmd-qcs-empty')!.textContent).toBe(
-      'No other Cooky windows are open.',
+      'No other Cleavo windows are open.',
     );
   });
 

@@ -48,7 +48,7 @@ function ensureDock(): HTMLElement {
   if (dock) return dock;
   dock = el('aside', 'lb-dock');
   dock.id = 'lb-dock';
-  dock.setAttribute('aria-label', 'Cooky sidebar');
+  dock.setAttribute('aria-label', 'Cleavo sidebar');
   dock.hidden = true;
 
   const head = el('div', 'lb-dock-head');
@@ -245,7 +245,7 @@ function buildEvidencePane(): void {
   signInBox = el('form', 'lb-signin');
   signInBox.append(
     el('h3', 'lb-h', 'Sign in to OpenCaselist'),
-    el('p', 'lb-muted', 'Use your Tabroom email and password. They go straight to OpenCaselist — Cooky keeps only the session, encrypted on this computer.'),
+    el('p', 'lb-muted', 'Use your Tabroom email and password. They go straight to OpenCaselist — Cleavo keeps only the session, encrypted on this computer.'),
   );
   const email = el('input', 'lb-input');
   email.type = 'email';

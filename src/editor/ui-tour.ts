@@ -68,7 +68,7 @@ function buildSteps(opts: { includeCreateDoc: boolean }): TourStep[] {
   const steps: TourStep[] = [
     {
       id: 'welcome',
-      title: 'Welcome to Cooky',
+      title: 'Welcome to Cleavo',
       body:
         'A quick tour of the interface — about a minute. Use the buttons or ← → to move, ' +
         'and Esc to skip. You can rerun it any time: it lives in the command bar as ' +
